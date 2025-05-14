@@ -1,15 +1,44 @@
 package com.proyect.ds6.ui.auth
 
-import androidx.compose.animation.core.*
+import android.content.Intent
+import androidx.activity.ComponentActivity
+import androidx.compose.animation.core.EaseInOutQuad
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -17,6 +46,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
@@ -30,9 +60,85 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.proyect.ds6.R
+import com.proyect.ds6.db.supabase
+import com.proyect.ds6.model.Admin
+import com.proyect.ds6.model.Employee
+import com.proyect.ds6.ui.admin.HomeActivity
+import com.proyect.ds6.ui.employee.EmployeeActivity
 import com.proyect.ds6.ui.theme.DS6Primary
 import com.proyect.ds6.ui.theme.DS6PrimaryDark
 import com.proyect.ds6.ui.theme.DS6Theme
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+
+/**
+ * Función para autenticar al usuario.
+ * Primero intenta con la tabla de administradores, luego con la tabla de empleados.
+ * Usa el cliente Supabase definido en db/supabase.kt
+ */
+private fun authenticateUser(
+    cedula: String,
+    password: String,
+    onAdminSuccess: () -> Unit,
+    onEmployeeSuccess: () -> Unit,
+    onError: (String) -> Unit
+) {
+    // Usar un scope para la corutina
+    CoroutineScope(Dispatchers.IO).launch {
+        try {            // Primero buscar en la tabla de usuarios (administradores)
+            val adminResult = try {
+                supabase.from("usuarios")
+                    .select(columns = Columns.list("cedula, contraseña")) {
+                        filter {
+                            eq("cedula", cedula)
+                        }
+                    }
+                    .decodeSingleOrNull<Admin>()
+            } catch (e: Exception) {
+                null
+            }
+
+            if (adminResult != null && adminResult.contraseña == password) {
+                withContext(Dispatchers.Main) {
+                    onAdminSuccess()
+                }
+                return@launch
+            }            // Si no está en la tabla de administradores, buscar en la tabla de empleados
+            val employeeResult = try {
+                supabase.from("empleados")
+                    .select(columns = Columns.list("cedula, contraseña")) {
+                        filter {
+                            eq("cedula", cedula)
+                        }
+                    }
+                    .decodeSingleOrNull<Employee>()
+            } catch (e: Exception) {
+                null
+            }
+
+            if (employeeResult != null && employeeResult.contraseña == password) {
+                withContext(Dispatchers.Main) {
+                    onEmployeeSuccess()
+                }
+                return@launch
+            }
+
+            // Si no se encontró en ninguna tabla
+            withContext(Dispatchers.Main) {
+                onError("Cédula o contraseña incorrecta")
+            }
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                onError("Error al conectar con el servidor: ${e.localizedMessage}")
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +157,7 @@ fun LoginScreen() {
     )
 
     // Validación para habilitar/deshabilitar el botón de login
-    isLoginEnabled = cedula.length >= 8 && password.length >= 6
+    isLoginEnabled = cedula.length >= 1 && password.length >= 1
 
     Box(
         modifier = Modifier
@@ -88,10 +194,15 @@ fun LoginScreen() {
 
                 OutlinedTextField(
                     value = cedula,
-                    onValueChange = {
-                        // Solo permite números
-                        if (it.all { char -> char.isDigit() } || it.isEmpty()) {
-                            cedula = it
+                    onValueChange = { newValue ->
+                        // Validar: solo números y hasta 3 guiones, no guiones consecutivos ni al principio
+                        val isValid = newValue.all { it.isDigit() || it == '-' } && 
+                                newValue.count { it == '-' } <= 2 && 
+                                !newValue.contains("--") && 
+                                !(newValue.isNotEmpty() && newValue[0] == '-') 
+                        
+                        if (isValid) {
+                            cedula = newValue
                         }
                     },
                     label = { Text("Cédula") },
@@ -103,7 +214,7 @@ fun LoginScreen() {
                         ),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
+                        keyboardType = KeyboardType.Phone,
                         imeAction = ImeAction.Next
                     ),
                     keyboardActions = KeyboardActions(
@@ -152,12 +263,60 @@ fun LoginScreen() {
                     }
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
-
+                Spacer(modifier = Modifier.height(24.dp))                // Estado para mostrar mensajes de error
+                var errorMessage by remember { mutableStateOf<String?>(null) }
+                var isLoading by remember { mutableStateOf(false) }
+                val context = LocalContext.current
+                
+                // Mostrar mensaje de error si existe
+                errorMessage?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+                
                 // Botón de inicio de sesión
                 Button(
                     onClick = {
-                        // Aquí iría la lógica de autenticación
+                        isLoading = true
+                        errorMessage = null
+                        
+                        // Validar credenciales
+                        if (cedula.isBlank()) {
+                            errorMessage = "Por favor, ingrese su cédula"
+                            isLoading = false
+                            return@Button
+                        }
+                        
+                        if (password.isBlank()) {
+                            errorMessage = "Por favor, ingrese su contraseña"
+                            isLoading = false
+                            return@Button
+                        }
+                                  // Intentar autenticación
+                        authenticateUser(
+                            cedula = cedula,
+                            password = password,
+                            onAdminSuccess = {
+                                // Navegar a la pantalla de administrador
+                                val intent = Intent(context, HomeActivity::class.java)
+                                context.startActivity(intent)
+                                (context as? ComponentActivity)?.finish()
+                            },
+                            onEmployeeSuccess = {
+                                // Navegar a la pantalla de empleado
+                                val intent = Intent(context, EmployeeActivity::class.java)
+                                context.startActivity(intent)
+                                (context as? ComponentActivity)?.finish()
+                            },
+                            onError = { message ->
+                                errorMessage = message
+                                isLoading = false
+                            }
+                        )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -167,12 +326,20 @@ fun LoginScreen() {
                             color = Color.White,
                             shape = RoundedCornerShape(8.dp)
                         ),
-                    enabled = isLoginEnabled,
+                    enabled = isLoginEnabled && !isLoading,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
-                    Text("Iniciar Sesión")
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Iniciar Sesión")
+                    }
                 }
             }
         }
