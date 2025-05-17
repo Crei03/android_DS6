@@ -1,8 +1,10 @@
 package com.proyect.ds6.ui.admin
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,13 +12,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DockedSearchBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -24,9 +32,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -44,6 +53,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.material.icons.filled.Face
 import androidx.navigation.NavHost
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -84,7 +95,7 @@ data class EmployeeUI(
 /**
  * Pantalla principal para listar empleados con funcionalidades de búsqueda y filtrado
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ListEmployeeScreen(
     onNavigateToAddEmployee: () -> Unit = {},
@@ -96,11 +107,12 @@ fun ListEmployeeScreen(
     
     // Estado para manejar el filtrado
     var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
+    // Estas variables ya no se usan para filtrado pero se mantienen para compatibilidad
     var selectedDepartmentFilter by remember { mutableStateOf<String?>(null) }
     var selectedRoleFilter by remember { mutableStateOf<String?>(null) }
     
     // Estado para mostrar el menú de filtros
-    var showFilterMenu by remember { mutableStateOf(false) }    // Estado para guardar el empleado seleccionado
+    var showFilterMenu by remember { mutableStateOf(false) }// Estado para guardar el empleado seleccionado
     var selectedEmployee by remember { mutableStateOf<String?>(null) }    
     
     // Estados para manejar la carga de datos
@@ -263,7 +275,7 @@ fun ListEmployeeScreen(
                 }
             }
         }
-    }    // Función para cargar empleados con filtros
+    }    // Función para cargar empleados con filtro de estado
     fun loadEmployees(statusFilter: String? = null, departmentFilter: String? = null, roleFilter: String? = null) {
         isLoading = true
         errorMessage = null
@@ -276,26 +288,15 @@ fun ListEmployeeScreen(
                     "Inactivos" -> 0
                     else -> null // "Todos" o null
                 }
-                
-                // Encontrar los códigos de departamento y cargo basados en los nombres seleccionados
-                val departmentCode = departmentFilter?.let { nombre ->
-                    departamentos.find { it.nombre == nombre }?.codigo
-                }
-                
-                val roleCode = roleFilter?.let { nombre ->
-                    cargos.find { it.nombre == nombre }?.codigo
-                }
-                
-                // Usar el término de búsqueda si hay algo en searchQuery
+                  // Usar el término de búsqueda si hay algo en searchQuery
                 val searchTermParameter = if (searchQuery.isNotBlank()) searchQuery else null
                 
-                // Cargar empleados filtrados
+                // Cargar empleados filtrados (sin filtros de departamento ni cargo)
                 val result = employeeRepository.getFilteredEmployees(
                     estadoFilter = estadoInt,
-                    departamentoFilter = departmentCode,
-                    cargoFilter = roleCode,
                     searchTerm = searchTermParameter
                 )
+                
                 
                 if (result.isSuccess) {
                     // Convertir los empleados del modelo a la UI
@@ -342,20 +343,19 @@ fun ListEmployeeScreen(
         }
     }
 
-    // Listas únicas para los filtros (extraídas de los datos reales)
-
-    // Cargar empleados eliminados cuando se solicita
+    // Listas únicas para los filtros (extraídas de los datos reales)    // Cargar empleados eliminados cuando se solicita
     LaunchedEffect(showDeletedEmployees) {
         if (showDeletedEmployees && deletedEmployees.isEmpty()) {
             loadDeletedEmployees()
         }
     }
 
-    val departmentNames = remember(employees) { 
-        employees.mapNotNull { it.departamentoNombre }.distinct() 
+    // Obtener listas de nombres de departamentos y cargos directamente de las listas cargadas
+    val departmentNames = remember(departamentos) { 
+        departamentos.mapNotNull { it.nombre }.distinct() 
     }
-    val roleNames = remember(employees) { 
-        employees.mapNotNull { it.cargoNombre }.distinct() 
+    val roleNames = remember(cargos) { 
+        cargos.mapNotNull { it.nombre }.distinct() 
     }
     
     // Función para filtrar empleados
@@ -381,32 +381,23 @@ fun ListEmployeeScreen(
         } else {
             false
         }
-        val matchesDepartment = selectedDepartmentFilter?.let {
-            employee.departamentoNombre == it
-        } ?: true
         
-        val matchesRole = selectedRoleFilter?.let {
-            employee.cargoNombre == it
-        } ?: true
+        // Ya no filtramos por departamento ni cargo a nivel local
+        // porque ahora todo el filtrado se hace a nivel de servidor
         
-        matchesSearch && matchesStatus && matchesDepartment && matchesRole
-    }
-      // Componente de menú de filtros
+        matchesSearch && matchesStatus
+    }// Componente de menú de filtros
     FilterChipsMenu(
         show = showFilterMenu,
         statusOptions = listOf("Todos", "Activos", "Inactivos"),
-        departmentOptions = departmentNames,
-        roleOptions = roleNames,
         initialSelectedStatus = selectedStatusFilter,
-        initialSelectedDepartment = selectedDepartmentFilter,
-        initialSelectedRole = selectedRoleFilter,        onApplyFilters = { status, department, role ->
+        onApplyFilters = { status ->
             // Guardar los filtros seleccionados
             selectedStatusFilter = status
-            selectedDepartmentFilter = department
-            selectedRoleFilter = role
-            
+            selectedDepartmentFilter = null
+            selectedRoleFilter = null            
             // Recargar los datos con los nuevos filtros
-            loadEmployees(status, department, role)
+            loadEmployees(status, null, null)
         },
         onDismiss = { showFilterMenu = false }
     )
@@ -450,19 +441,18 @@ fun ListEmployeeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {                // Barra de búsqueda                
                 DockedSearchBar(
-                    query = searchQuery,
-                    onQueryChange = { 
+                    query = searchQuery,                    onQueryChange = {
                         searchQuery = it
                         // Recargar si la búsqueda está vacía o tiene más de 3 caracteres
                         if (!showDeletedEmployees && (it.isEmpty() || it.length >= 3)) {
-                            loadEmployees(selectedStatusFilter, selectedDepartmentFilter, selectedRoleFilter)
+                            loadEmployees(selectedStatusFilter, null, null)
                         }
                     },
-                    onSearch = { 
+                    onSearch = {
                         isSearchActive = false
                         // Si no estamos en la vista de eliminados, recargar con la búsqueda
                         if (!showDeletedEmployees) {
-                            loadEmployees(selectedStatusFilter, selectedDepartmentFilter, selectedRoleFilter)
+                            loadEmployees(selectedStatusFilter, null, null)
                         }
                     },
                     active = isSearchActive,
@@ -488,21 +478,44 @@ fun ListEmployeeScreen(
                     )
                 }
             }
+              Spacer(modifier = Modifier.height(16.dp))
             
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Mostrar resumen de filtros activos (si hay alguno)
-            if (selectedStatusFilter != null || selectedDepartmentFilter != null || selectedRoleFilter != null) {
-                Text(
-                    text = "Filtros activos: " + 
-                           (selectedStatusFilter ?: "") + 
-                           (if (selectedDepartmentFilter != null) " • $selectedDepartmentFilter" else "") +
-                           (if (selectedRoleFilter != null) " • $selectedRoleFilter" else ""),
-                    style = MaterialTheme.typography.bodySmall,
+            // Mostrar chips de filtros activos (si hay alguno)
+            if (selectedStatusFilter != null) {
+                FlowRow(
                     modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 8.dp)
-                )
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Chip para el filtro de estado
+                    SuggestionChip(
+                        onClick = {
+                            selectedStatusFilter = null
+                            loadEmployees(null, null, null)
+                        },
+                        label = { Text(selectedStatusFilter!!) },
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Eliminar filtro de estado",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                            )
+                        },
+                        border = SuggestionChipDefaults.suggestionChipBorder(
+                            enabled = true,
+                            borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                            disabledBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                            borderWidth = 1.dp
+                        ),
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                            iconContentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                }
             }
             
             // Pestañas para alternar entre empleados activos y eliminados
@@ -516,11 +529,10 @@ fun ListEmployeeScreen(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                        .clickable { 
-                            if (showDeletedEmployees) {
+                        .clickable {                            if (showDeletedEmployees) {
                                 showDeletedEmployees = false
                                 // Recargar la lista de empleados activos con los filtros actuales
-                                loadEmployees(selectedStatusFilter, selectedDepartmentFilter, selectedRoleFilter)
+                                loadEmployees(selectedStatusFilter, null, null)
                             }
                         },
                     color = if (!showDeletedEmployees) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
@@ -624,14 +636,13 @@ fun ListEmployeeScreen(
                                     CoroutineScope(Dispatchers.IO).launch {
                                         try {
                                             val result = employeeRepository.updateEmployeeStatus(employee.id, nuevoEstado)
-                                            
-                                            if (result.isSuccess) {
+                                              if (result.isSuccess) {
                                                 // Recargar los datos para asegurar que reflejen el estado actual
                                                 withContext(Dispatchers.Main) {
                                                     // Recargar con los filtros actuales para mantener la coherencia
-                                                    loadEmployees(selectedStatusFilter, selectedDepartmentFilter, selectedRoleFilter)
+                                                    loadEmployees(selectedStatusFilter, null, null)
                                                 }
-                                            } else {
+                                            }else {
                                                 // Mostrar un mensaje de error (en una app real se mostraría un Toast o Snackbar)
                                                 println("Error al actualizar el estado del empleado: ${result.exceptionOrNull()?.message}")
                                             }
@@ -739,10 +750,9 @@ fun ListEmployeeScreen(
                                                 // Refrescar la lista después de restaurar
                                                 withContext(Dispatchers.Main) {                                                    // Eliminar el empleado de la lista de eliminados
                                                     deletedEmployees.removeIf { it.id == employee.id }
-                                                    
-                                                    // Recargar ambas listas para reflejar los cambios
+                                                      // Recargar las listas para reflejar los cambios
                                                     loadDeletedEmployees()
-                                                    loadEmployees(selectedStatusFilter, selectedDepartmentFilter, selectedRoleFilter)
+                                                    loadEmployees(selectedStatusFilter, null, null)
                                                 }
                                             } else {
                                                 // Manejar el error

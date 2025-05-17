@@ -36,26 +36,19 @@ import androidx.compose.ui.window.Dialog
 import com.proyect.ds6.ui.theme.DS6Theme
 
 /**
- * Componente que muestra un menú de filtros con chips para filtrar por estado, departamento y cargo
+ * Componente que muestra un menú de filtros con chips para filtrar por estado del empleado
  */
 @Composable
 fun FilterChipsMenu(
     show: Boolean,
     statusOptions: List<String> = listOf("Todos", "Activos", "Inactivos"),
-    departmentOptions: List<String> = emptyList(),
-    roleOptions: List<String> = emptyList(),
     initialSelectedStatus: String? = null,
-    initialSelectedDepartment: String? = null,
-    initialSelectedRole: String? = null,
-    onApplyFilters: (String?, String?, String?) -> Unit = { _, _, _ -> },
+    onApplyFilters: (String?) -> Unit = { _ -> },
     onDismiss: () -> Unit = {}
 ) {
     if (!show) return
     
     var selectedStatus by remember { mutableStateOf(initialSelectedStatus) }
-    var selectedDepartment by remember { mutableStateOf(initialSelectedDepartment) }
-    var selectedRole by remember { mutableStateOf(initialSelectedRole) }
-    
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
@@ -82,8 +75,7 @@ fun FilterChipsMenu(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
-                
-                LazyRow(
+                  LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(vertical = 8.dp)
@@ -103,86 +95,7 @@ fun FilterChipsMenu(
                         )
                     }
                 }
-                
-                // Filtros por departamento
-                Text(
-                    text = "Departamento:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    item {
-                        FilterChip(
-                            selected = selectedDepartment == null,
-                            onClick = { selectedDepartment = null },
-                            label = { Text("Todos") },
-                            shape = CircleShape,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        )
-                    }
-                    
-                    items(departmentOptions) { department ->
-                        FilterChip(
-                            selected = selectedDepartment == department,
-                            onClick = { selectedDepartment = if (selectedDepartment == department) null else department },
-                            label = { Text(department) },
-                            shape = CircleShape,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        )
-                    }
-                }
-                
-                // Filtros por cargo
-                Text(
-                    text = "Cargo:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    item {
-                        FilterChip(
-                            selected = selectedRole == null,
-                            onClick = { selectedRole = null },
-                            label = { Text("Todos") },
-                            shape = CircleShape,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        )
-                    }
-                    
-                    items(roleOptions) { role ->
-                        FilterChip(
-                            selected = selectedRole == role,
-                            onClick = { selectedRole = if (selectedRole == role) null else role },
-                            label = { Text(role) },
-                            shape = CircleShape,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
+                  Spacer(modifier = Modifier.height(16.dp))
                 
                 // Botones de acción (siguiendo las guías de UI)
                 Row(
@@ -206,7 +119,7 @@ fun FilterChipsMenu(
                     // Botón Aplicar (principal)
                     Button(
                         onClick = { 
-                            onApplyFilters(selectedStatus, selectedDepartment, selectedRole)
+                            onApplyFilters(selectedStatus)
                             onDismiss()
                         },
                         colors = ButtonDefaults.buttonColors(
@@ -229,9 +142,7 @@ fun FilterChipsMenuPreview() {
         Surface {
             // Preview con datos de muestra
             FilterChipsMenu(
-                show = true,
-                departmentOptions = listOf("Recursos Humanos", "Contabilidad", "Tecnología", "Ventas"),
-                roleOptions = listOf("Gerente", "Asistente", "Desarrollador", "Contador")
+                show = true
             )
         }
     }
