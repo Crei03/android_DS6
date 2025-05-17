@@ -49,12 +49,6 @@ fun AddressInfoComponent(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Información de Dirección",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
             // Provincia
             var expandedProvincia by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(

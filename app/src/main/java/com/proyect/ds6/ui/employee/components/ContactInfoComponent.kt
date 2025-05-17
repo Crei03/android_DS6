@@ -47,11 +47,6 @@ fun ContactInfoComponent(
                 .padding(16.dp)
                 .fillMaxWidth()
         ) {
-            Text(
-                text = "Información de Contacto",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
 
             // Celular
             OutlinedTextField(

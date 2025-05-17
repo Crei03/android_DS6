@@ -4,7 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable // Import clickable modifier
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.* // Import necessary Compose state APIs
 import androidx.compose.ui.Modifier
@@ -21,8 +21,8 @@ import androidx.compose.ui.Alignment // Import Alignment for the DatePicker dial
 // Import the data classes for Cargo and Departamento
 import com.proyect.ds6.model.Cargo
 import com.proyect.ds6.model.Departamento
-// Import the helper dropdown composable
-import com.proyect.ds6.ui.components.DropdownSelector
+// Ya no necesitamos importar el DropdownSelector
+// import com.proyect.ds6.ui.components.DropdownSelector
 
 
 /**
@@ -54,12 +54,10 @@ fun WorkInfoComponent(
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = fechaContratacion
-    )
-
-    // Remove local expanded states for dropdowns handled by DropdownSelector
-    // var expandedDepartamento by remember { mutableStateOf(false) }
-    // var expandedCargo by remember { mutableStateOf(false) }
-    var expandedEstado by remember { mutableStateOf(false) } // Keep local state for static Estado dropdown
+    )    // Estados para controlar los dropdowns
+    var expandedDepartamento by remember { mutableStateOf(false) }
+    var expandedCargo by remember { mutableStateOf(false) }
+    var expandedEstado by remember { mutableStateOf(false) } // Estado para el dropdown Estado
 
 
     Card(
@@ -77,32 +75,91 @@ fun WorkInfoComponent(
                 .padding(16.dp)
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp) // Use spacedBy for consistent spacing
-        ) {
-            Text(
-                text = "Información de Trabajo",
-                style = MaterialTheme.typography.headlineSmall,
-                // modifier = Modifier.padding(bottom = 16.dp) // Spacing handled by Column arrangement
-            )
+        ) {            // Departamento Dropdown
+            ExposedDropdownMenuBox(
+                expanded = expandedDepartamento,
+                onExpandedChange = { expandedDepartamento = it },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = selectedDepartamento?.nombre ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Departamento") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDepartamento) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
+                )
 
-            // Departamento Dropdown, using DropdownSelector helper
-            DropdownSelector(
-                label = "Departamento",
-                options = departamentos, // Use the list passed from ViewModel
-                selectedOption = selectedDepartamento, // Use the selected object state
-                onOptionSelected = onDepartamentoSelected, // Use the callback to update selection
-                optionToString = { it.nombre ?: "Sin Nombre" } // Define how to display a Departamento
-            )
+                ExposedDropdownMenu(
+                    expanded = expandedDepartamento,
+                    onDismissRequest = { expandedDepartamento = false }
+                ) {
+                    departamentos.forEach { depto ->
+                        DropdownMenuItem(
+                            text = { Text(depto.nombre ?: "Sin Nombre") },
+                            onClick = {
+                                onDepartamentoSelected(depto)
+                                expandedDepartamento = false
+                            }
+                        )
+                    }
+                    // Opción para limpiar la selección
+                    if (selectedDepartamento != null) {
+                        DropdownMenuItem(
+                            text = { Text("Limpiar selección") },
+                            onClick = {
+                                onDepartamentoSelected(null)
+                                expandedDepartamento = false
+                            }
+                        )
+                    }
+                }
+            }
 
-            // Cargo Dropdown, using DropdownSelector helper
-            DropdownSelector(
-                label = "Cargo",
-                options = cargos, // Use the list passed from ViewModel
-                selectedOption = selectedCargo, // Use the selected object state
-                onOptionSelected = onCargoSelected, // Use the callback to update selection
-                optionToString = { it.nombre ?: "Sin Nombre" } // Define how to display a Cargo
-                // Note: If Cargo filtering by Departamento is needed in the UI,
-                // the 'cargos' list passed here would be the already filtered list from the ViewModel.
-            )
+            // Cargo Dropdown
+            ExposedDropdownMenuBox(
+                expanded = expandedCargo,
+                onExpandedChange = { expandedCargo = it },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = selectedCargo?.nombre ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Cargo") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCargo) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expandedCargo,
+                    onDismissRequest = { expandedCargo = false }
+                ) {
+                    cargos.forEach { cargo ->
+                        DropdownMenuItem(
+                            text = { Text(cargo.nombre ?: "Sin Nombre") },
+                            onClick = {
+                                onCargoSelected(cargo)
+                                expandedCargo = false
+                            }
+                        )
+                    }
+                    // Opción para limpiar la selección
+                    if (selectedCargo != null) {
+                        DropdownMenuItem(
+                            text = { Text("Limpiar selección") },
+                            onClick = {
+                                onCargoSelected(null)
+                                expandedCargo = false
+                            }
+                        )
+                    }
+                }
+            }
 
             // Estado Dropdown
             ExposedDropdownMenuBox(
@@ -154,7 +211,7 @@ fun WorkInfoComponent(
                 readOnly = true,
                 trailingIcon = {
                     IconButton(onClick = { showDatePicker = true }) {
-                        Icon(Icons.Filled.CalendarToday, contentDescription = "Seleccionar fecha")
+                        Icon(Icons.Filled.Info, contentDescription = "Seleccionar fecha")
                     }
                 }
             )

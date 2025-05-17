@@ -21,8 +21,8 @@ import androidx.compose.ui.Alignment // Import Alignment for the DatePicker dial
 
 // Import the data class for Nacionalidad
 import com.proyect.ds6.model.Nacionalidad
-// Import the helper dropdown composable
-import com.proyect.ds6.ui.components.DropdownSelector
+// Ya no necesitamos importar el DropdownSelector
+// import com.proyect.ds6.ui.components.DropdownSelector
 
 
 /**
@@ -80,11 +80,6 @@ fun PersonalInfoComponent(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp) // Use spacedBy for consistent spacing
         ) {
-            Text(
-                text = "Información Personal",
-                style = MaterialTheme.typography.headlineSmall,
-                // modifier = Modifier.padding(bottom = 16.dp) // Spacing handled by Column arrangement
-            )
 
             // Campo de Cédula
             OutlinedTextField(
@@ -185,21 +180,22 @@ fun PersonalInfoComponent(
                 expanded = expandedGenero,
                 onExpandedChange = { expandedGenero = it },
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedTextField(
+            ) {                OutlinedTextField(
                     value = genero,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Género") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGenero) },
-                    modifier = Modifier.menuAnchor() // Ensure menuAnchor is applied
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor() // Ensure menuAnchor is applied
                 )
 
                 ExposedDropdownMenu(
                     expanded = expandedGenero,
                     onDismissRequest = { expandedGenero = false }
                 ) {
-                    listOf("Masculino", "Femenino", "Otro").forEach { option ->
+                    listOf("Masculino", "Femenino").forEach { option ->
                         DropdownMenuItem(
                             text = { Text(option) },
                             onClick = {
@@ -217,21 +213,22 @@ fun PersonalInfoComponent(
                 expanded = expandedEstadoCivil,
                 onExpandedChange = { expandedEstadoCivil = it },
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedTextField(
+            ) {                OutlinedTextField(
                     value = estadoCivil,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Estado Civil") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedEstadoCivil) },
-                    modifier = Modifier.menuAnchor()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
                 )
 
                 ExposedDropdownMenu(
                     expanded = expandedEstadoCivil,
                     onDismissRequest = { expandedEstadoCivil = false }
                 ) {
-                    listOf("Soltero/a", "Casado/a", "Divorciado/a", "Viudo/a", "Unión libre").forEach { option ->
+                    listOf("Soltero/a", "Casado/a", "Divorciado/a", "Viudo/a").forEach { option ->
                         DropdownMenuItem(
                             text = { Text(option) },
                             onClick = {
@@ -249,14 +246,15 @@ fun PersonalInfoComponent(
                 expanded = expandedTipoSangre,
                 onExpandedChange = { expandedTipoSangre = it },
                 modifier = Modifier.fillMaxWidth()
-            ) {
-                OutlinedTextField(
+            ) {                OutlinedTextField(
                     value = tipoSangre,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Tipo de Sangre") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTipoSangre) },
-                    modifier = Modifier.menuAnchor()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
                 )
 
                 ExposedDropdownMenu(
@@ -273,17 +271,49 @@ fun PersonalInfoComponent(
                         )
                     }
                 }
-            }
+            }            // Nacionalidad
+            var expandedNacionalidad by remember { mutableStateOf(false) }
+            ExposedDropdownMenuBox(
+                expanded = expandedNacionalidad,
+                onExpandedChange = { expandedNacionalidad = it },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = selectedNacionalidad?.pais ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Nacionalidad") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedNacionalidad) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor()
+                )
 
-            // --- Dropdown for Nacionalidad, using the helper ---
-            DropdownSelector(
-                label = "Nacionalidad",
-                options = nationalities, // Pass the list of nationalities from ViewModel
-                selectedOption = selectedNacionalidad, // Pass the currently selected nationality object
-                onOptionSelected = onNacionalidadSelected, // Pass the callback to update selection
-                optionToString = { it.pais ?: "Sin País" } // Define how to display Nacionalidad as a String (using 'pais' property)
-            )
-            // --- Fin del Dropdown de Nacionalidad ---
+                ExposedDropdownMenu(
+                    expanded = expandedNacionalidad,
+                    onDismissRequest = { expandedNacionalidad = false }
+                ) {
+                    nationalities.forEach { nacionalidad ->
+                        DropdownMenuItem(
+                            text = { Text(nacionalidad.pais ?: "Sin País") },
+                            onClick = {
+                                onNacionalidadSelected(nacionalidad)
+                                expandedNacionalidad = false
+                            }
+                        )
+                    }
+                    // Opción para limpiar la selección
+                    if (selectedNacionalidad != null) {
+                        DropdownMenuItem(
+                            text = { Text("Limpiar selección") },
+                            onClick = {
+                                onNacionalidadSelected(null)
+                                expandedNacionalidad = false
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 
