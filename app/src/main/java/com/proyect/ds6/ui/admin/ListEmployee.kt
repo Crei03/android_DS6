@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
@@ -35,12 +36,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
 import androidx.navigation.NavHost
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -49,6 +52,7 @@ import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import com.proyect.ds6.R
 import com.proyect.ds6.ui.admin.components.EmployeeCard
+import com.proyect.ds6.ui.admin.components.DeletedEmployeeCard
 import com.proyect.ds6.ui.components.FilterChipsMenu
 import com.proyect.ds6.ui.theme.DS6Theme
 import com.proyect.ds6.model.Employee
@@ -56,6 +60,7 @@ import com.proyect.ds6.model.Departamento
 import com.proyect.ds6.model.Cargo
 import com.proyect.ds6.data.repository.EmployeeRepository
 import com.proyect.ds6.db.supabase
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -96,21 +101,27 @@ fun ListEmployeeScreen(
     
     // Estado para mostrar el menú de filtros
     var showFilterMenu by remember { mutableStateOf(false) }
+      // Estado para guardar el empleado seleccionado
+    var selectedEmployee by remember { mutableStateOf<String?>(null) }    
     
-    // Estado para guardar el empleado seleccionado
-    var selectedEmployee by remember { mutableStateOf<String?>(null) }    // Estados para manejar la carga de datos
+    // Estados para manejar la carga de datos
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val employees = remember { mutableStateListOf<EmployeeUI>() }
     
+    // Estado para empleados eliminados
+    var showDeletedEmployees by remember { mutableStateOf(false) }
+    val deletedEmployees = remember { mutableStateListOf<EmployeeUI>() }
+    var isLoadingDeleted by remember { mutableStateOf(false) }
+    var deletedErrorMessage by remember { mutableStateOf<String?>(null) }
+    var selectedDeletedEmployee by remember { mutableStateOf<String?>(null) }
+    
     // Estados para almacenar los datos de departamentos y cargos
     val departamentos = remember { mutableStateListOf<Departamento>() }
     val cargos = remember { mutableStateListOf<Cargo>() }
-    
-    // Crear el repositorio
+      // Crear el repositorio    
     val employeeRepository = remember { EmployeeRepository(supabase) }
-    
-    // Cargar datos
+      // Cargar datos
     LaunchedEffect(key1 = Unit) {
         isLoading = true
         try {
@@ -177,7 +188,73 @@ fun ListEmployeeScreen(
         } finally {
             isLoading = false
         }
-    }    // Listas únicas para los filtros (extraídas de los datos reales)
+    }
+
+    
+    // Función para cargar empleados eliminados
+    fun loadDeletedEmployees() {
+        isLoadingDeleted = true
+        deletedErrorMessage = null
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val depMap = departamentos.associateBy({ it.codigo }, { it })
+                val cargoMap = cargos.associateBy({ it.codigo }, { it })
+                
+                val result = employeeRepository.getDeletedEmployees()
+                
+                if (result.isSuccess) {
+                    // Convertir los empleados del modelo a la UI
+                    val deletedEmployeesUI = result.getOrNull()?.map { employee ->
+                        // Buscar nombres en los mapas
+                        val departamentoNombre = employee.departamento?.let { 
+                            depMap[it]?.nombre ?: it // Si no se encuentra, usar el código
+                        }
+                        
+                        val cargoNombre = employee.cargo?.let { 
+                            cargoMap[it]?.nombre ?: it // Si no se encuentra, usar el código
+                        }
+                        
+                        EmployeeUI(
+                            id = employee.cedula,
+                            nombre = "${employee.nombre1 ?: ""} ${employee.nombre2 ?: ""}".trim(),
+                            apellido = "${employee.apellido1 ?: ""} ${employee.apellido2 ?: ""}".trim(),
+                            cedula = employee.cedula,
+                            departamentoCodigo = employee.departamento,
+                            departamentoNombre = departamentoNombre,
+                            cargoCodigo = employee.cargo,
+                            cargoNombre = cargoNombre,
+                            activo = false // Todos los eliminados los marcamos como inactivos
+                        )
+                    } ?: emptyList()
+                    
+                    withContext(Dispatchers.Main) {
+                        deletedEmployees.clear()
+                        deletedEmployees.addAll(deletedEmployeesUI)
+                        isLoadingDeleted = false
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        deletedErrorMessage = "Error al cargar los empleados eliminados: ${result.exceptionOrNull()?.message}"
+                        isLoadingDeleted = false
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    deletedErrorMessage = "Error inesperado: ${e.message}"
+                    isLoadingDeleted = false
+                }
+            }
+        }
+    }// Listas únicas para los filtros (extraídas de los datos reales)
+
+    // Cargar empleados eliminados cuando se solicita
+    LaunchedEffect(showDeletedEmployees) {
+        if (showDeletedEmployees && deletedEmployees.isEmpty()) {
+            loadDeletedEmployees()
+        }
+    }
+
     val departmentNames = remember(employees) { 
         employees.mapNotNull { it.departamentoNombre }.distinct() 
     }
@@ -234,18 +311,20 @@ fun ListEmployeeScreen(
         },
         onDismiss = { showFilterMenu = false }
     )
-    
-    Scaffold(
+      Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToAddEmployee,
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Agregar empleado",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
+            // Mostrar FAB solo en la sección de empleados activos
+            if (!showDeletedEmployees) {
+                FloatingActionButton(
+                    onClick = onNavigateToAddEmployee,
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Agregar empleado",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
         }
     ) { innerPadding ->
@@ -253,8 +332,7 @@ fun ListEmployeeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-        ) {
-            // Título de la pantalla
+        ) {            // Título de la pantalla
             Text(
                 text = "Gestión de Empleados",
                 style = MaterialTheme.typography.headlineMedium,
@@ -316,71 +394,224 @@ fun ListEmployeeScreen(
                         .padding(bottom = 8.dp)
                 )
             }
-              // Lista de empleados
-            if (isLoading) {
-                // Mostrar indicador de carga
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(text = "Cargando empleados...")
-                    }
-                }
-            } else if (errorMessage != null) {
-                // Mostrar mensaje de error
-                Box(
+            
+            // Pestañas para alternar entre empleados activos y eliminados
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Pestaña Empleados Activos
+                Surface(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
+                        .weight(1f)
+                        .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
+                        .clickable { showDeletedEmployees = false },
+                    color = if (!showDeletedEmployees) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
                 ) {
                     Text(
-                        text = errorMessage ?: "Error desconocido",
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            } else if (filteredEmployees.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No se encontraron empleados con los filtros actuales",
-                        style = MaterialTheme.typography.bodyLarge,
+                        text = "Empleados Activos",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (!showDeletedEmployees) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
                         textAlign = TextAlign.Center
                     )
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp) // Espacio para el FAB
+                
+                // Pestaña Empleados Eliminados
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
+                        .clickable { showDeletedEmployees = true },
+                    color = if (showDeletedEmployees) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
                 ) {
-                    items(filteredEmployees) { employee ->                        EmployeeCard(
-                            nombre = employee.nombre,
-                            apellido = employee.apellido,
-                            cedula = employee.cedula,
-                            departamento = employee.departamentoNombre ?: "Sin departamento",
-                            cargo = employee.cargoNombre ?: "Sin cargo",
-                            activo = employee.activo,
-                            isSelected = selectedEmployee == employee.id,
-                            onClick = { selectedEmployee = if (selectedEmployee == employee.id) null else employee.id },
-                            onActiveChange = { /* En una app real, aquí actualizaríamos el estado del empleado */ },
-                            onView = { onNavigateToEmployeeDetail(employee.id) },
-                            onDelete = { /* En una app real, aquí eliminaríamos el empleado */ }
+                    Text(
+                        text = "Empleados Eliminados",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (showDeletedEmployees) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+              // Lista de empleados
+            if (!showDeletedEmployees) {
+                // Sección de empleados activos
+                if (isLoading) {
+                    // Mostrar indicador de carga
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(text = "Cargando empleados...")
+                        }
+                    }
+                } else if (errorMessage != null) {
+                    // Mostrar mensaje de error
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = errorMessage ?: "Error desconocido",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.error
                         )
+                    }
+                } else if (filteredEmployees.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No se encontraron empleados con los filtros actuales",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 80.dp) // Espacio para el FAB
+                    ) {
+                        items(filteredEmployees) { employee ->                        
+                            EmployeeCard(
+                                nombre = employee.nombre,
+                                apellido = employee.apellido,
+                                cedula = employee.cedula,
+                                departamento = employee.departamentoNombre ?: "Sin departamento",
+                                cargo = employee.cargoNombre ?: "Sin cargo",
+                                activo = employee.activo,
+                                isSelected = selectedEmployee == employee.id,
+                                onClick = { selectedEmployee = if (selectedEmployee == employee.id) null else employee.id },
+                                onActiveChange = { /* En una app real, aquí actualizaríamos el estado del empleado */ },                            
+                                onView = { onNavigateToEmployeeDetail(employee.id) },
+                                onDelete = { 
+                                    // Eliminar el empleado usando el repositorio
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        try {
+                                            val result = employeeRepository.deleteEmployee(employee.id)
+
+                                            if (result.isSuccess) {
+                                                // Refrescar la lista después de eliminar
+                                                withContext(Dispatchers.Main) {
+                                                    // Eliminar el empleado de la lista local
+                                                    employees.removeIf { it.id == employee.id }
+                                                }
+                                            } else {
+                                                // Manejar el error
+                                                println("Error al eliminar empleado: ${result.exceptionOrNull()?.message}")
+                                            }
+                                        } catch (e: Exception) {
+                                            // Manejar el error (en una app real mostraríamos un mensaje)
+                                            println("Error inesperado: ${e.message}")
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            } else {
+                // Sección de empleados eliminados
+                if (isLoadingDeleted) {
+                    // Mostrar indicador de carga
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(text = "Cargando empleados eliminados...")
+                        }
+                    }
+                } else if (deletedErrorMessage != null) {
+                    // Mostrar mensaje de error
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = deletedErrorMessage ?: "Error desconocido",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                } else if (deletedEmployees.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No hay empleados eliminados",
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 80.dp) // Espacio para el FAB
+                    ) {
+                        items(deletedEmployees) { employee ->
+                            DeletedEmployeeCard(
+                                nombre = employee.nombre,
+                                apellido = employee.apellido,
+                                cedula = employee.cedula,
+                                departamento = employee.departamentoNombre ?: "Sin departamento",
+                                cargo = employee.cargoNombre ?: "Sin cargo",
+                                isSelected = selectedDeletedEmployee == employee.id,
+                                onClick = { selectedDeletedEmployee = if (selectedDeletedEmployee == employee.id) null else employee.id },
+                                onView = { onNavigateToEmployeeDetail(employee.id) },
+                                onRestore = {
+                                    // Restaurar el empleado usando el repositorio
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        try {
+                                            val result = employeeRepository.reinstateEmployee(employee.id)
+
+                                            if (result.isSuccess) {
+                                                // Refrescar la lista después de restaurar
+                                                withContext(Dispatchers.Main) {
+                                                    // Eliminar el empleado de la lista de eliminados
+                                                    deletedEmployees.removeIf { it.id == employee.id }
+                                                    // Recargar la lista de empleados activos
+                                                    loadDeletedEmployees()
+                                                }
+                                            } else {
+                                                // Manejar el error
+                                                println("Error al restaurar empleado: ${result.exceptionOrNull()?.message}")
+                                            }
+                                        } catch (e: Exception) {
+                                            // Manejar el error (en una app real mostraríamos un mensaje)
+                                            println("Error inesperado: ${e.message}")
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
-        }
-    }
+        }    }
 }
 

@@ -3,8 +3,9 @@ package com.proyect.ds6.data.repository
 import com.proyect.ds6.model.* // Import all your data classes
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
-//import io.github.jan.supabase.exceptions.SupabaseException
-// import io.github.jan.supabase.rpc // If you use RPCs
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
 
 // Repository responsible for employee-related data operations and fetching lookup data
 class EmployeeRepository(private val supabaseClient: SupabaseClient) {
@@ -112,10 +113,63 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
     /**
      * Obtiene todos los empleados de la tabla 'empleados'.
      * @return Result<List<Employee>> con la lista de empleados en caso de éxito o un error en caso de fallo.
-     */
-    suspend fun getAllEmployees(): Result<List<Employee>> {
+     */    suspend fun getAllEmployees(): Result<List<Employee>> {
         return try {
             val employees = supabaseClient.postgrest["empleados"].select().decodeList<Employee>()
+            Result.success(employees)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+      /**
+     * Elimina un empleado usando el procedimiento almacenado 'eliminar_empleado'.
+     * @param cedula La cédula del empleado que se va a eliminar.
+     * @return Result<Unit> indicando éxito o fracaso.
+     */
+      suspend fun deleteEmployee(cedula: String): Result<Unit> {
+          return try {
+              // Crear objeto para la solicitud RPC
+              val rpcParams = DeleteEmployeeRequest(cedula)
+
+              // Convertir el objeto a JsonObject usando serialización
+              val jsonObject = Json.encodeToJsonElement(rpcParams).jsonObject
+
+              // Llamar al procedimiento RPC con el formato correcto
+              supabaseClient.postgrest.rpc("eliminar_empleado", jsonObject)
+
+              Result.success(Unit)
+          } catch (e: Exception) {
+              e.printStackTrace()
+              Result.failure(e)
+          }
+      }    
+      /**
+        * Obtiene un empleado específico por su cédula.
+        * @param cedula La cédula del empleado a buscar.
+        * @return Result<Employee?> con el empleado encontrado o null si no se encuentra.
+        */
+        suspend fun reinstateEmployee(cedula: String): Result<Unit>  {
+            return try {
+                val rpcParams = ReinstateEmployeeRequest(cedula)
+                val jsonObject = Json.encodeToJsonElement(rpcParams).jsonObject
+
+                supabaseClient.postgrest.rpc("reintegrar_empleado", jsonObject)
+
+                Result.success(Unit)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Result.failure(e)
+            }
+        }
+        
+    /**
+     * Obtiene todos los empleados eliminados de la tabla 'e_eliminados'.
+     * @return Result<List<Employee>> con la lista de empleados eliminados en caso de éxito o un error en caso de fallo.
+     */    
+    suspend fun getDeletedEmployees(): Result<List<Employee>> {
+        return try {
+            val employees = supabaseClient.postgrest["e_eliminados"].select().decodeList<Employee>()
             Result.success(employees)
         } catch (e: Exception) {
             e.printStackTrace()

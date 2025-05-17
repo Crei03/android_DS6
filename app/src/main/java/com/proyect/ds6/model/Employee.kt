@@ -128,3 +128,20 @@ data class Employee(
     val estado: Int? = null // DEFAULT NULL en la BD
 )
 
+/**
+ * Data class para solicitar la eliminación de un empleado en RPC
+ */
+@Serializable
+data class DeleteEmployeeRequest(
+    @SerialName("emp_id")
+    val emp_id: String
+)
+
+/**
+ * Data class para reintegrar un empleado en RPC
+ */
+@Serializable
+data class ReinstateEmployeeRequest(
+    @SerialName("emp_id")
+    val emp_id: String
+)
