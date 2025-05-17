@@ -64,6 +64,12 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     implementation(platform("io.github.jan-tennert.supabase:bom:3.1.4"))
+    implementation("io.github.jan-tennert.supabase:auth-kt")
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
+
     implementation("io.ktor:ktor-client-android:3.1.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
+    implementation ("androidx.compose.material:material-icons-extended:1.5.1")
+
 }

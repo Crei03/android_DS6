@@ -1,6 +1,7 @@
 package com.proyect.ds6.ui.auth
 
 import android.content.Intent
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.core.EaseInOutQuad
 import androidx.compose.animation.core.RepeatMode
@@ -88,6 +89,9 @@ private fun authenticateUser(
     onEmployeeSuccess: () -> Unit,
     onError: (String) -> Unit
 ) {
+
+    // Log de las credenciales enviadas (evita esto en producción)
+    Log.d("LoginDebug", "Cédula: $cedula, Contraseña: $password")
     // Usar un scope para la corutina
     CoroutineScope(Dispatchers.IO).launch {
         try {            // Primero buscar en la tabla de usuarios (administradores)
@@ -103,7 +107,7 @@ private fun authenticateUser(
                 null
             }
 
-            if (adminResult != null && adminResult.contraseña == password) {
+            if (adminResult != null && adminResult.contrasena == password) {
                 withContext(Dispatchers.Main) {
                     onAdminSuccess()
                 }
@@ -121,7 +125,7 @@ private fun authenticateUser(
                 null
             }
 
-            if (employeeResult != null && employeeResult.contraseña == password) {
+            if (employeeResult != null && employeeResult.contrasena == password) {
                 withContext(Dispatchers.Main) {
                     onEmployeeSuccess()
                 }
@@ -134,11 +138,14 @@ private fun authenticateUser(
             }
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {
+                Log.e("LoginError", "Error al autenticar: ${e.localizedMessage}")
                 onError("Error al conectar con el servidor: ${e.localizedMessage}")
             }
         }
     }
 }
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -1,24 +1,38 @@
-package com.proyect.ds6.ui.employee.components
+package com.proyect.ds6.ui.employee.components // Adjust package as needed
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.* // Import necessary Compose state APIs
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.proyect.ds6.model.Corregimiento // Import data classes
+import com.proyect.ds6.model.Distrito
+import com.proyect.ds6.model.Provincia
+import com.proyect.ds6.ui.components.DropdownSelector // Import the helper dropdown composable
+
 
 /**
- * Componente que muestra los campos para la información de dirección del empleado
+ * Componente que muestra los campos para la información de dirección del empleado,
+ * usando listas de opciones proporcionadas externamente (ej: desde un ViewModel).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddressInfoComponent(
-    provincia: String,
-    onProvinciaChange: (String) -> Unit,
-    distrito: String,
-    onDistritoChange: (String) -> Unit,
-    corregimiento: String,
-    onCorregimientoChange: (String) -> Unit,
+    // --- Parámetros actualizados para las listas y selecciones ---
+    provinces: List<Provincia>, // Lista de provincias obtenida del ViewModel
+    selectedProvincia: Provincia?, // Provincia actualmente seleccionada (objeto)
+    onProvinciaSelected: (Provincia?) -> Unit, // Callback cuando se selecciona una provincia
+
+    distritos: List<Distrito>, // Lista de distritos (filtrada por provincia, obtenida del ViewModel)
+    selectedDistrito: Distrito?, // Distrito actualmente seleccionado (objeto)
+    onDistritoSelected: (Distrito?) -> Unit, // Callback cuando se selecciona un distrito
+
+    corregimientos: List<Corregimiento>, // Lista de corregimientos (filtrada por distrito, obtenida del ViewModel)
+    selectedCorregimiento: Corregimiento?, // Corregimiento actualmente seleccionado (objeto)
+    onCorregimientoSelected: (Corregimiento?) -> Unit, // Callback cuando se selecciona un corregimiento
+    // --- Fin de parámetros actualizados ---
+
     calle: String,
     onCalleChange: (String) -> Unit,
     casa: String,
@@ -26,30 +40,16 @@ fun AddressInfoComponent(
     comunidad: String,
     onComunidadChange: (String) -> Unit
 ) {
-    // Lista de provincias de Panamá
-    val provincias = listOf(
-        "Bocas del Toro", "Chiriquí", "Coclé", "Colón", "Darién", 
-        "Herrera", "Los Santos", "Panamá", "Panamá Oeste", "Veraguas",
-        "Comarca Emberá-Wounaan", "Comarca Guna Yala", "Comarca Ngäbe-Buglé"
-    )
+    // Remove static lists as they will be passed as parameters
+    // val provincias = listOf(...)
+    // val distritosPorProvincia = mapOf(...)
+    // val corregimientosPorDistrito = mapOf(...)
 
-    // Mapeo estático de distritos por provincia (solo algunos ejemplos)
-    val distritosPorProvincia = mapOf(
-        "Panamá" to listOf("Panamá", "San Miguelito", "Taboga", "Balboa", "Chepo"),
-        "Chiriquí" to listOf("David", "Barú", "Bugaba", "Alanje", "Boquerón"),
-        "Colón" to listOf("Colón", "Chagres", "Donoso", "Portobelo", "Santa Isabel")
-    )
+    // Remove local expanded states as they are handled within DropdownSelector
+    // var expandedProvincia by remember { mutableStateOf(false) }
+    // var expandedDistrito by remember { mutableStateOf(false) }
+    // var expandedCorregimiento by remember { mutableStateOf(false) }
 
-    // Mapeo estático de corregimientos por distrito (solo algunos ejemplos)
-    val corregimientosPorDistrito = mapOf(
-        "Panamá" to listOf("San Felipe", "El Chorrillo", "Santa Ana", "Calidonia", "Bella Vista"),
-        "San Miguelito" to listOf("Amelia Denis De Icaza", "Belisario Porras", "José Domingo Espinar", "Mateo Iturralde"),
-        "David" to listOf("David", "San Carlos", "San Pablo Nuevo", "San Pablo Viejo", "Cochea")
-    )
-
-    var expandedProvincia by remember { mutableStateOf(false) }
-    var expandedDistrito by remember { mutableStateOf(false) }
-    var expandedCorregimiento by remember { mutableStateOf(false) }
 
     Card(
         modifier = Modifier
@@ -64,113 +64,43 @@ fun AddressInfoComponent(
         Column(
             modifier = Modifier
                 .padding(16.dp)
-                .fillMaxWidth()
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp) // Use spacedBy for consistent spacing
         ) {
             Text(
                 text = "Información de Dirección",
                 style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 16.dp)
+                // modifier = Modifier.padding(bottom = 16.dp) // Spacing handled by Column arrangement
             )
 
-            // Provincia
-            ExposedDropdownMenuBox(
-                expanded = expandedProvincia,
-                onExpandedChange = { expandedProvincia = it },
-            ) {
-                OutlinedTextField(
-                    value = provincia,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Provincia") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProvincia) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
-                )
+            // Provincia Dropdown, using DropdownSelector helper
+            DropdownSelector(
+                label = "Provincia",
+                options = provinces, // Use the list passed from ViewModel
+                selectedOption = selectedProvincia, // Use the selected object state
+                onOptionSelected = onProvinciaSelected, // Use the callback to update selection
+                optionToString = { it.nombre_provincia } // Define how to display a Provincia
+            )
 
-                ExposedDropdownMenu(
-                    expanded = expandedProvincia,
-                    onDismissRequest = { expandedProvincia = false },
-                ) {
-                    provincias.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = { 
-                                onProvinciaChange(option)
-                                expandedProvincia = false
-                            }
-                        )
-                    }
-                }
-            }
+            // Distrito Dropdown, using DropdownSelector helper
+            DropdownSelector(
+                label = "Distrito",
+                options = distritos, // Use the list passed from ViewModel (already filtered)
+                selectedOption = selectedDistrito, // Use the selected object state
+                onOptionSelected = onDistritoSelected, // Use the callback to update selection
+                optionToString = { it.nombre_distrito }, // Define how to display a Distrito
+                enabled = selectedProvincia != null // Enable only if a province is selected
+            )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Distrito
-            ExposedDropdownMenuBox(
-                expanded = expandedDistrito,
-                onExpandedChange = { expandedDistrito = it },
-            ) {
-                OutlinedTextField(
-                    value = distrito,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Distrito") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDistrito) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
-                )
-
-                ExposedDropdownMenu(
-                    expanded = expandedDistrito,
-                    onDismissRequest = { expandedDistrito = false },
-                ) {
-                    // Mostrar distritos de la provincia seleccionada o una lista vacía si no hay
-                    val distritos = distritosPorProvincia[provincia] ?: emptyList()
-                    distritos.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = { 
-                                onDistritoChange(option)
-                                expandedDistrito = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Corregimiento
-            ExposedDropdownMenuBox(
-                expanded = expandedCorregimiento,
-                onExpandedChange = { expandedCorregimiento = it },
-            ) {
-                OutlinedTextField(
-                    value = corregimiento,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Corregimiento") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCorregimiento) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
-                )
-
-                ExposedDropdownMenu(
-                    expanded = expandedCorregimiento,
-                    onDismissRequest = { expandedCorregimiento = false },
-                ) {
-                    // Mostrar corregimientos del distrito seleccionado o una lista vacía si no hay
-                    val corregimientos = corregimientosPorDistrito[distrito] ?: emptyList()
-                    corregimientos.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option) },
-                            onClick = { 
-                                onCorregimientoChange(option)
-                                expandedCorregimiento = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            // Corregimiento Dropdown, using DropdownSelector helper
+            DropdownSelector(
+                label = "Corregimiento",
+                options = corregimientos, // Use the list passed from ViewModel (already filtered)
+                selectedOption = selectedCorregimiento, // Use the selected object state
+                onOptionSelected = onCorregimientoSelected, // Use the callback to update selection
+                optionToString = { it.nombre_corregimiento }, // Define how to display a Corregimiento
+                enabled = selectedDistrito != null // Enable only if a district is selected
+            )
 
             // Calle
             OutlinedTextField(
@@ -179,8 +109,6 @@ fun AddressInfoComponent(
                 label = { Text("Calle") },
                 modifier = Modifier.fillMaxWidth()
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             // Fila para Casa y Comunidad
             Row(

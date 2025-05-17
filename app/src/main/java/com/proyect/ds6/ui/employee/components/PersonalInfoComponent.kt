@@ -1,17 +1,33 @@
-package com.proyect.ds6.ui.employee.components
+package com.proyect.ds6.ui.employee.components // Adjust package as needed
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable // Import clickable modifier
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.* // Import necessary Compose state APIs
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import java.util.*
+// Import necessary Material 3 DatePicker components
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.ui.Alignment // Import Alignment for the DatePicker dialog buttons
+
+// Import the data class for Nacionalidad
+import com.proyect.ds6.model.Nacionalidad
+// Import the helper dropdown composable
+import com.proyect.ds6.ui.components.DropdownSelector
+
 
 /**
- * Componente que muestra los campos para la información personal del empleado
+ * Componente que muestra los campos para la información personal del empleado,
+ * incluyendo la selección de Nacionalidad desde una lista proporcionada y un DatePicker para la fecha.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,16 +44,24 @@ fun PersonalInfoComponent(
     onSegundoApellidoChange: (String) -> Unit,
     fechaNacimiento: Long,
     onFechaNacimientoChange: (Long) -> Unit,
-    genero: String,
-    onGeneroChange: (String) -> Unit,
-    estadoCivil: String,
-    onEstadoCivilChange: (String) -> Unit,
-    tipoSangre: String,
-    onTipoSangreChange: (String) -> Unit,
+    genero: String, // Still using String for now
+    onGeneroChange: (String) -> Unit, // Still using String for now
+    estadoCivil: String, // Still using String for now
+    onEstadoCivilChange: (String) -> Unit, // Still using String for now
+    tipoSangre: String, // Still using String for now
+    onTipoSangreChange: (String) -> Unit, // Still using String for now
+    // --- Parámetros para la Nacionalidad desde el ViewModel ---
+    nationalities: List<Nacionalidad>, // Lista de nacionalidades obtenida del ViewModel
+    selectedNacionalidad: Nacionalidad?, // Nacionalidad actualmente seleccionada (objeto)
+    onNacionalidadSelected: (Nacionalidad?) -> Unit // Callback cuando se selecciona una nacionalidad
+    // --- Fin de parámetros ---
 ) {
+    // State to control the visibility of the DatePicker dialog
     var showDatePicker by remember { mutableStateOf(false) }
+
+    // State for the DatePicker itself
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = fechaNacimiento
+        initialSelectedDateMillis = fechaNacimiento // Initialize with the current date value
     )
 
     Card(
@@ -53,12 +77,13 @@ fun PersonalInfoComponent(
         Column(
             modifier = Modifier
                 .padding(16.dp)
-                .fillMaxWidth()
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp) // Use spacedBy for consistent spacing
         ) {
             Text(
                 text = "Información Personal",
                 style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 16.dp)
+                // modifier = Modifier.padding(bottom = 16.dp) // Spacing handled by Column arrangement
             )
 
             // Campo de Cédula
@@ -69,8 +94,6 @@ fun PersonalInfoComponent(
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             // Fila para nombres
             Row(
@@ -91,8 +114,6 @@ fun PersonalInfoComponent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Fila para apellidos
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -112,62 +133,90 @@ fun PersonalInfoComponent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Fecha de Nacimiento
+            // Campo de Fecha de Nacimiento
             OutlinedTextField(
                 value = if (fechaNacimiento > 0) {
                     val calendar = Calendar.getInstance()
                     calendar.timeInMillis = fechaNacimiento
                     "${calendar.get(Calendar.DAY_OF_MONTH)}/${calendar.get(Calendar.MONTH) + 1}/${calendar.get(Calendar.YEAR)}"
                 } else "",
-                onValueChange = {},
+                onValueChange = {}, // Campo de solo lectura
                 label = { Text("Fecha de Nacimiento") },
-                modifier = Modifier.fillMaxWidth(),
-                readOnly = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker = true }, // Abre el DatePicker al hacer clic
+                readOnly = true, // Evita que se escriba directamente
                 trailingIcon = {
                     IconButton(onClick = { showDatePicker = true }) {
-                        Text("📅")
+                        Icon(Icons.Default.CalendarToday, contentDescription = "Seleccionar fecha")
                     }
                 }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+// Dialog para seleccionar la fecha
+            if (showDatePicker) {
+                DatePickerDialog(
+                    onDismissRequest = { showDatePicker = false },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                datePickerState.selectedDateMillis?.let {
+                                    onFechaNacimientoChange(it) // Actualiza la fecha seleccionada
+                                }
+                                showDatePicker = false // Cierra el diálogo
+                            }
+                        ) {
+                            Text("Confirmar")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDatePicker = false }) {
+                            Text("Cancelar")
+                        }
+                    }
+                ) {
+                    DatePicker(state = datePickerState)
+                }
+            }
 
             // Género
+            var expandedGenero by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
-                expanded = false,
-                onExpandedChange = {},
+                expanded = expandedGenero,
+                onExpandedChange = { expandedGenero = it },
+                modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
                     value = genero,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Género") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = false) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGenero) },
+                    modifier = Modifier.menuAnchor() // Ensure menuAnchor is applied
                 )
 
                 ExposedDropdownMenu(
-                    expanded = false,
-                    onDismissRequest = {},
+                    expanded = expandedGenero,
+                    onDismissRequest = { expandedGenero = false }
                 ) {
                     listOf("Masculino", "Femenino", "Otro").forEach { option ->
                         DropdownMenuItem(
                             text = { Text(option) },
-                            onClick = { onGeneroChange(option) }
+                            onClick = {
+                                onGeneroChange(option) // Update the selected value
+                                expandedGenero = false // Close the dropdown
+                            }
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Estado Civil
+// Estado Civil
             var expandedEstadoCivil by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = expandedEstadoCivil,
                 onExpandedChange = { expandedEstadoCivil = it },
+                modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
                     value = estadoCivil,
@@ -175,17 +224,17 @@ fun PersonalInfoComponent(
                     readOnly = true,
                     label = { Text("Estado Civil") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedEstadoCivil) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                    modifier = Modifier.menuAnchor()
                 )
 
                 ExposedDropdownMenu(
                     expanded = expandedEstadoCivil,
-                    onDismissRequest = { expandedEstadoCivil = false },
+                    onDismissRequest = { expandedEstadoCivil = false }
                 ) {
                     listOf("Soltero/a", "Casado/a", "Divorciado/a", "Viudo/a", "Unión libre").forEach { option ->
                         DropdownMenuItem(
                             text = { Text(option) },
-                            onClick = { 
+                            onClick = {
                                 onEstadoCivilChange(option)
                                 expandedEstadoCivil = false
                             }
@@ -194,13 +243,12 @@ fun PersonalInfoComponent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Tipo de Sangre
+// Tipo de Sangre
             var expandedTipoSangre by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = expandedTipoSangre,
                 onExpandedChange = { expandedTipoSangre = it },
+                modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
                     value = tipoSangre,
@@ -208,17 +256,17 @@ fun PersonalInfoComponent(
                     readOnly = true,
                     label = { Text("Tipo de Sangre") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTipoSangre) },
-                    modifier = Modifier.fillMaxWidth().menuAnchor()
+                    modifier = Modifier.menuAnchor()
                 )
 
                 ExposedDropdownMenu(
                     expanded = expandedTipoSangre,
-                    onDismissRequest = { expandedTipoSangre = false },
+                    onDismissRequest = { expandedTipoSangre = false }
                 ) {
                     listOf("A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-").forEach { option ->
                         DropdownMenuItem(
                             text = { Text(option) },
-                            onClick = { 
+                            onClick = {
                                 onTipoSangreChange(option)
                                 expandedTipoSangre = false
                             }
@@ -226,20 +274,32 @@ fun PersonalInfoComponent(
                     }
                 }
             }
+
+            // --- Dropdown for Nacionalidad, using the helper ---
+            DropdownSelector(
+                label = "Nacionalidad",
+                options = nationalities, // Pass the list of nationalities from ViewModel
+                selectedOption = selectedNacionalidad, // Pass the currently selected nationality object
+                onOptionSelected = onNacionalidadSelected, // Pass the callback to update selection
+                optionToString = { it.pais ?: "Sin País" } // Define how to display Nacionalidad as a String (using 'pais' property)
+            )
+            // --- Fin del Dropdown de Nacionalidad ---
         }
     }
-    
+
     // Date Picker Dialog
+    // This dialog is rendered outside the Card so it floats correctly
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        datePickerState.selectedDateMillis?.let { 
-                            onFechaNacimientoChange(it)
+                        // Get the selected date from the state
+                        datePickerState.selectedDateMillis?.let {
+                            onFechaNacimientoChange(it) // Pass the selected timestamp back
                         }
-                        showDatePicker = false
+                        showDatePicker = false // Hide the dialog
                     }
                 ) {
                     Text("Confirmar")
@@ -251,6 +311,7 @@ fun PersonalInfoComponent(
                 }
             }
         ) {
+            // The DatePicker content itself
             DatePicker(state = datePickerState)
         }
     }
