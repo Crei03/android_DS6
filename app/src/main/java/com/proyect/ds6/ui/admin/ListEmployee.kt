@@ -25,12 +25,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -43,17 +45,28 @@ import com.proyect.ds6.R
 import com.proyect.ds6.ui.admin.components.EmployeeCard
 import com.proyect.ds6.ui.components.FilterChipsMenu
 import com.proyect.ds6.ui.theme.DS6Theme
+import com.proyect.ds6.model.Employee
+import com.proyect.ds6.model.Departamento
+import com.proyect.ds6.model.Cargo
+import com.proyect.ds6.data.repository.EmployeeRepository
+import com.proyect.ds6.db.supabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * Modelo de datos para un empleado (datos estáticos)
+ * Contenedor de datos UI para un empleado con los campos necesarios para la visualización
  */
-data class Employee(
-    val id: Int,
+data class EmployeeUI(
+    val id: String,
     val nombre: String,
     val apellido: String,
     val cedula: String,
-    val departamento: String,
-    val cargo: String,
+    val departamentoCodigo: String?,
+    val departamentoNombre: String?,
+    val cargoCodigo: String?,
+    val cargoNombre: String?,
     val activo: Boolean
 )
 
@@ -64,7 +77,7 @@ data class Employee(
 @Composable
 fun ListEmployeeScreen(
     onNavigateToAddEmployee: () -> Unit = {},
-    onNavigateToEmployeeDetail: (Int) -> Unit = {}
+    onNavigateToEmployeeDetail: (String) -> Unit = {}
 ) {
     // Estado para manejar la búsqueda
     var searchQuery by remember { mutableStateOf("") }
@@ -79,25 +92,92 @@ fun ListEmployeeScreen(
     var showFilterMenu by remember { mutableStateOf(false) }
     
     // Estado para guardar el empleado seleccionado
-    var selectedEmployee by remember { mutableStateOf<Int?>(null) }
+    var selectedEmployee by remember { mutableStateOf<String?>(null) }    // Estados para manejar la carga de datos
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val employees = remember { mutableStateListOf<EmployeeUI>() }
     
-    // Lista de empleados estática
-    val employees = remember {
-        mutableStateListOf(
-            Employee(1, "Juan Carlos", "Pérez Rodríguez", "9-999-9999", "Recursos Humanos", "Especialista de Reclutamiento", true),
-            Employee(2, "María José", "González López", "8-888-8888", "Contabilidad", "Contador Senior", true),
-            Employee(3, "Roberto", "Sánchez Díaz", "7-777-7777", "Tecnología", "Desarrollador Frontend", true),
-            Employee(4, "Ana María", "Martínez Flores", "6-666-6666", "Ventas", "Gerente de Cuentas", false),
-            Employee(5, "Pedro", "Ramírez Castro", "5-555-5555", "Recursos Humanos", "Asistente Administrativo", true),
-            Employee(6, "Sofía", "López Herrera", "4-444-4444", "Tecnología", "Ingeniero DevOps", false),
-            Employee(7, "Carlos", "García Mendoza", "3-333-3333", "Contabilidad", "Asistente Contable", true),
-            Employee(8, "Lucía", "Torres Vargas", "2-222-2222", "Ventas", "Representante de Ventas", true)
-        )
+    // Estados para almacenar los datos de departamentos y cargos
+    val departamentos = remember { mutableStateListOf<Departamento>() }
+    val cargos = remember { mutableStateListOf<Cargo>() }
+    
+    // Crear el repositorio
+    val employeeRepository = remember { EmployeeRepository(supabase) }
+    
+    // Cargar datos
+    LaunchedEffect(key1 = Unit) {
+        isLoading = true
+        try {
+            // Cargar departamentos
+            val depResult = withContext(Dispatchers.IO) {
+                employeeRepository.getDepartamentos()
+            }
+            
+            if (depResult.isSuccess) {
+                departamentos.clear()
+                departamentos.addAll(depResult.getOrNull() ?: emptyList())
+            }
+            
+            // Cargar cargos
+            val cargoResult = withContext(Dispatchers.IO) {
+                employeeRepository.getCargos()
+            }
+            
+            if (cargoResult.isSuccess) {
+                cargos.clear()
+                cargos.addAll(cargoResult.getOrNull() ?: emptyList())
+            }
+              // Crear mapas para búsqueda rápida
+            val depMap = departamentos.associateBy({ it.codigo }, { it })
+            val cargoMap = cargos.associateBy({ it.codigo }, { it })
+            
+            // Cargar empleados
+            val result = withContext(Dispatchers.IO) {
+                employeeRepository.getAllEmployees()
+            }
+            
+            if (result.isSuccess) {
+                // Convertir los empleados del modelo a la UI
+                val employeesUI = result.getOrNull()?.map { employee ->
+                    // Buscar nombres en los mapas
+                    val departamentoNombre = employee.departamento?.let { 
+                        depMap[it]?.nombre ?: it // Si no se encuentra, usar el código
+                    }
+                    
+                    val cargoNombre = employee.cargo?.let { 
+                        cargoMap[it]?.nombre ?: it // Si no se encuentra, usar el código
+                    }
+                    
+                    EmployeeUI(
+                        id = employee.cedula,
+                        nombre = "${employee.nombre1 ?: ""} ${employee.nombre2 ?: ""}".trim(),
+                        apellido = "${employee.apellido1 ?: ""} ${employee.apellido2 ?: ""}".trim(),
+                        cedula = employee.cedula,
+                        departamentoCodigo = employee.departamento,
+                        departamentoNombre = departamentoNombre,
+                        cargoCodigo = employee.cargo,
+                        cargoNombre = cargoNombre,
+                        activo = employee.estado == 1
+                    )
+                } ?: emptyList()
+                
+                employees.clear()
+                employees.addAll(employeesUI)
+            } else {
+                errorMessage = "Error al cargar los empleados: ${result.exceptionOrNull()?.message}"
+            }
+        } catch (e: Exception) {
+            errorMessage = "Error inesperado: ${e.message}"
+        } finally {
+            isLoading = false
+        }
+    }    // Listas únicas para los filtros (extraídas de los datos reales)
+    val departmentNames = remember(employees) { 
+        employees.mapNotNull { it.departamentoNombre }.distinct() 
     }
-    
-    // Listas únicas para los filtros
-    val departments = remember { employees.map { it.departamento }.distinct() }
-    val roles = remember { employees.map { it.cargo }.distinct() }
+    val roleNames = remember(employees) { 
+        employees.mapNotNull { it.cargoNombre }.distinct() 
+    }
     
     // Función para filtrar empleados
     val filteredEmployees = employees.filter { employee ->
@@ -106,36 +186,38 @@ fun ListEmployeeScreen(
             employee.nombre.contains(searchQuery, ignoreCase = true) ||
             employee.apellido.contains(searchQuery, ignoreCase = true) ||
             employee.cedula.contains(searchQuery, ignoreCase = true) ||
-            employee.departamento.contains(searchQuery, ignoreCase = true) ||
-            employee.cargo.contains(searchQuery, ignoreCase = true)
+            (employee.departamentoNombre?.contains(searchQuery, ignoreCase = true) ?: false) ||
+            (employee.cargoNombre?.contains(searchQuery, ignoreCase = true) ?: false)
         } else true
         
         // Filtros por chips
-        val matchesStatus = selectedStatusFilter?.let {
-            when (it) {
-                "Activos" -> employee.activo
-                "Inactivos" -> !employee.activo
-                else -> true
-            }
-        } ?: true
-        
+        val matchesStatus = if (selectedStatusFilter?.let {
+                when (it) {
+                    "Activos" -> employee.activo
+                    "Inactivos" -> !employee.activo
+                    else -> true
+                }
+            } ?: true) {
+            true
+        } else {
+            false
+        }
         val matchesDepartment = selectedDepartmentFilter?.let {
-            employee.departamento == it
+            employee.departamentoNombre == it
         } ?: true
         
         val matchesRole = selectedRoleFilter?.let {
-            employee.cargo == it
+            employee.cargoNombre == it
         } ?: true
         
         matchesSearch && matchesStatus && matchesDepartment && matchesRole
     }
-    
-    // Componente de menú de filtros
+      // Componente de menú de filtros
     FilterChipsMenu(
         show = showFilterMenu,
         statusOptions = listOf("Todos", "Activos", "Inactivos"),
-        departmentOptions = departments,
-        roleOptions = roles,
+        departmentOptions = departmentNames,
+        roleOptions = roleNames,
         initialSelectedStatus = selectedStatusFilter,
         initialSelectedDepartment = selectedDepartmentFilter,
         initialSelectedRole = selectedRoleFilter,
@@ -228,9 +310,37 @@ fun ListEmployeeScreen(
                         .padding(bottom = 8.dp)
                 )
             }
-            
-            // Lista de empleados
-            if (filteredEmployees.isEmpty()) {
+              // Lista de empleados
+            if (isLoading) {
+                // Mostrar indicador de carga
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(text = "Cargando empleados...")
+                    }
+                }
+            } else if (errorMessage != null) {
+                // Mostrar mensaje de error
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = errorMessage ?: "Error desconocido",
+                        style = MaterialTheme.typography.bodyLarge,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            } else if (filteredEmployees.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -248,13 +358,12 @@ fun ListEmployeeScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 80.dp) // Espacio para el FAB
                 ) {
-                    items(filteredEmployees) { employee ->
-                        EmployeeCard(
+                    items(filteredEmployees) { employee ->                        EmployeeCard(
                             nombre = employee.nombre,
                             apellido = employee.apellido,
                             cedula = employee.cedula,
-                            departamento = employee.departamento,
-                            cargo = employee.cargo,
+                            departamento = employee.departamentoNombre ?: "Sin departamento",
+                            cargo = employee.cargoNombre ?: "Sin cargo",
                             activo = employee.activo,
                             isSelected = selectedEmployee == employee.id,
                             onClick = { selectedEmployee = if (selectedEmployee == employee.id) null else employee.id },
@@ -269,12 +378,3 @@ fun ListEmployeeScreen(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun ListEmployeeScreenPreview() {
-    DS6Theme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            ListEmployeeScreen()
-        }
-    }
-}

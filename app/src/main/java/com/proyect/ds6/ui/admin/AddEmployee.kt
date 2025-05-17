@@ -297,7 +297,6 @@ fun AddEmployee(
                                 "Casado/a" -> 2
                                 "Divorciado/a" -> 3
                                 "Viudo/a" -> 4
-                                "Unión libre" -> 5 // Assuming 5 for Unión libre, adjust as per your DB/logic
                                 else -> null // Handle empty or unknown string
                             }
 
