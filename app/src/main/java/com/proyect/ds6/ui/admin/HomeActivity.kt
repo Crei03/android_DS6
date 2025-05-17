@@ -1,6 +1,7 @@
 package com.proyect.ds6.ui.admin
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Box
@@ -18,10 +19,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.proyect.ds6.data.repository.EmployeeRepository
+import com.proyect.ds6.db.supabase
 import com.proyect.ds6.ui.theme.DS6Theme
 import com.proyect.ds6.ui.admin.components.BottomNavigationBar
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,7 +46,6 @@ class HomeActivity : ComponentActivity() {
         }
     }
 }
-@Preview
 @Composable
 fun HomeScreen() {
     // Estado para controlar la pestaña seleccionada
@@ -55,6 +62,9 @@ fun HomeScreen() {
     
     // Estado para almacenar la cédula del empleado seleccionado
     var selectedEmployeeCedula by remember { mutableStateOf("") }
+    
+    // Contexto para mostrar los Toast
+    val context = androidx.compose.ui.platform.LocalContext.current
     
     Scaffold(
         bottomBar = {
@@ -83,7 +93,8 @@ fun HomeScreen() {
                             // Desactivar el modo subpantalla
                             inSubscreen = false
                         }
-                    )                    "add_admin" -> AddUserScreen(
+                    )                    
+                    "add_admin" -> AddUserScreen(
                         onBackClick = {
                             // Volver a la pestaña anterior
                             selectedTab = previousTab
@@ -97,14 +108,61 @@ fun HomeScreen() {
                             selectedTab = previousTab
                             // Desactivar el modo subpantalla
                             inSubscreen = false
+                        },
+                        onSaveUser = { codigo, nombre ->
+                            // Guardar el nuevo departamento
+                            CoroutineScope(Dispatchers.IO).launch {
+                                try {
+                                    val repository = EmployeeRepository(supabase)
+                                    val result = repository.insertDepartamento(codigo, nombre)
+                                      withContext(Dispatchers.Main) {
+                                        if (result.isSuccess) {
+                                            Toast.makeText(context, "Departamento guardado correctamente", Toast.LENGTH_SHORT).show()
+                                            // Volver a la pestaña anterior
+                                            selectedTab = previousTab
+                                            // Desactivar el modo subpantalla
+                                            inSubscreen = false
+                                        } else {
+                                            Toast.makeText(context, "Error al guardar el departamento: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                } catch (e: Exception) {                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
                         }
-                    )
-                    "add_position" -> AddWorkScreen (
+                    )                    "add_position" -> AddWorkScreen(
                         onBackClick = {
                             // Volver a la pestaña anterior
                             selectedTab = previousTab
                             // Desactivar el modo subpantalla
                             inSubscreen = false
+                        },
+                        onSaveUser = { codigo, depCodigo, nombre ->
+                            // Guardar el nuevo cargo
+                            CoroutineScope(Dispatchers.IO).launch {
+                                try {
+                                    val repository = EmployeeRepository(supabase)
+                                    val result = repository.insertCargo(codigo, depCodigo, nombre)
+                                    
+                                    withContext(Dispatchers.Main) {
+                                        if (result.isSuccess) {
+                                            Toast.makeText(context, "Cargo guardado correctamente", Toast.LENGTH_SHORT).show()
+                                            // Volver a la pestaña anterior
+                                            selectedTab = previousTab
+                                            // Desactivar el modo subpantalla
+                                            inSubscreen = false
+                                        } else {
+                                            Toast.makeText(context, "Error al guardar el cargo: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Error inesperado: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
                         }
                     )
                     "employee_detail" -> DetailsEmployeeScreen(
