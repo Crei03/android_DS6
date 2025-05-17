@@ -233,5 +233,73 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
             Result.failure(e)
         }
     }
-    
+
+    suspend fun updateEmployeeStatus(cedula: String, estado: Int): Result<Unit> {
+        return try {
+            val updates = mapOf("estado" to estado)
+            supabaseClient.postgrest.from("empleados")
+                .update(updates) {
+                    filter {
+                        eq("cedula", cedula)
+                    }
+                }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Obtiene todos los empleados aplicando filtros opcionales.
+     * @param estadoFilter El estado por el cual filtrar (1 = activo, 0 = inactivo, null = todos)
+     * @param departamentoFilter El código de departamento por el cual filtrar (null = todos)
+     * @param cargoFilter El código de cargo por el cual filtrar (null = todos)
+     * @param searchTerm Término para buscar en nombres, apellidos o cédula (null = sin búsqueda)
+     * @return Result<List<Employee>> con la lista filtrada de empleados en caso de éxito o un error en caso de fallo.
+     */    suspend fun getFilteredEmployees(
+        estadoFilter: Int? = null,
+        departamentoFilter: String? = null,
+        cargoFilter: String? = null,
+        searchTerm: String? = null
+    ): Result<List<Employee>> {
+        return try {
+            val query = supabaseClient.postgrest.from("empleados").select {
+                // Aplicar filtros dentro del bloque
+                filter {
+                    // Filtro por estado
+                    if (estadoFilter != null) {
+                        eq("estado", estadoFilter.toString())
+                    }
+                    
+                    // Filtro por departamento
+                    if (departamentoFilter != null) {
+                        eq("departamento", departamentoFilter)
+                    }
+                    
+                    // Filtro por cargo
+                    if (cargoFilter != null) {
+                        eq("cargo", cargoFilter)
+                    }
+                    
+                    // Búsqueda en múltiples campos
+                    if (!searchTerm.isNullOrBlank()) {
+                        or {
+                            ilike("nombre1", "%$searchTerm%")
+                            ilike("nombre2", "%$searchTerm%")
+                            ilike("apellido1", "%$searchTerm%")
+                            ilike("apellido2", "%$searchTerm%")
+                            ilike("cedula", "%$searchTerm%")
+                        }
+                    }
+                }
+            }
+            
+            val employees = query.decodeList<Employee>()
+            Result.success(employees)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
 }

@@ -100,8 +100,7 @@ fun ListEmployeeScreen(
     var selectedRoleFilter by remember { mutableStateOf<String?>(null) }
     
     // Estado para mostrar el menú de filtros
-    var showFilterMenu by remember { mutableStateOf(false) }
-      // Estado para guardar el empleado seleccionado
+    var showFilterMenu by remember { mutableStateOf(false) }    // Estado para guardar el empleado seleccionado
     var selectedEmployee by remember { mutableStateOf<String?>(null) }    
     
     // Estados para manejar la carga de datos
@@ -119,6 +118,10 @@ fun ListEmployeeScreen(
     // Estados para almacenar los datos de departamentos y cargos
     val departamentos = remember { mutableStateListOf<Departamento>() }
     val cargos = remember { mutableStateListOf<Cargo>() }
+    
+    // Mapas para búsqueda rápida por código
+    val departamentosPorCodigo = remember { mutableMapOf<String, Departamento>() }
+    val cargosPorCodigo = remember { mutableMapOf<String, Cargo>() }
       // Crear el repositorio    
     val employeeRepository = remember { EmployeeRepository(supabase) }
       // Cargar datos
@@ -130,9 +133,16 @@ fun ListEmployeeScreen(
                 employeeRepository.getDepartamentos()
             }
             
-            if (depResult.isSuccess) {
-                departamentos.clear()
+            if (depResult.isSuccess) {                departamentos.clear()
                 departamentos.addAll(depResult.getOrNull() ?: emptyList())
+                
+                // Actualizar el mapa de departamentos por código
+                departamentosPorCodigo.clear()
+                departamentos.forEach { departamento ->
+                    departamento.codigo?.let { codigo ->
+                        departamentosPorCodigo[codigo] = departamento
+                    }
+                }
             }
             
             // Cargar cargos
@@ -140,9 +150,16 @@ fun ListEmployeeScreen(
                 employeeRepository.getCargos()
             }
             
-            if (cargoResult.isSuccess) {
-                cargos.clear()
+            if (cargoResult.isSuccess) {                cargos.clear()
                 cargos.addAll(cargoResult.getOrNull() ?: emptyList())
+                
+                // Actualizar el mapa de cargos por código
+                cargosPorCodigo.clear()
+                cargos.forEach { cargo ->
+                    cargo.codigo?.let { codigo ->
+                        cargosPorCodigo[codigo] = cargo
+                    }
+                }
             }
               // Crear mapas para búsqueda rápida
             val depMap = departamentos.associateBy({ it.codigo }, { it })
@@ -246,7 +263,86 @@ fun ListEmployeeScreen(
                 }
             }
         }
-    }// Listas únicas para los filtros (extraídas de los datos reales)
+    }    // Función para cargar empleados con filtros
+    fun loadEmployees(statusFilter: String? = null, departmentFilter: String? = null, roleFilter: String? = null) {
+        isLoading = true
+        errorMessage = null
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Convertir el filtro de estado a Int para la consulta
+                val estadoInt: Int? = when(statusFilter) {
+                    "Activos" -> 1
+                    "Inactivos" -> 0
+                    else -> null // "Todos" o null
+                }
+                
+                // Encontrar los códigos de departamento y cargo basados en los nombres seleccionados
+                val departmentCode = departmentFilter?.let { nombre ->
+                    departamentos.find { it.nombre == nombre }?.codigo
+                }
+                
+                val roleCode = roleFilter?.let { nombre ->
+                    cargos.find { it.nombre == nombre }?.codigo
+                }
+                
+                // Usar el término de búsqueda si hay algo en searchQuery
+                val searchTermParameter = if (searchQuery.isNotBlank()) searchQuery else null
+                
+                // Cargar empleados filtrados
+                val result = employeeRepository.getFilteredEmployees(
+                    estadoFilter = estadoInt,
+                    departamentoFilter = departmentCode,
+                    cargoFilter = roleCode,
+                    searchTerm = searchTermParameter
+                )
+                
+                if (result.isSuccess) {
+                    // Convertir los empleados del modelo a la UI
+                    val employeesUI = result.getOrNull()?.map { employee ->
+                        // Buscar nombres en los mapas
+                        val departamentoNombre = employee.departamento?.let { 
+                            departamentosPorCodigo[it]?.nombre ?: it // Si no se encuentra, usar el código
+                        }
+                        
+                        val cargoNombre = employee.cargo?.let { 
+                            cargosPorCodigo[it]?.nombre ?: it // Si no se encuentra, usar el código
+                        }
+                        
+                        EmployeeUI(
+                            id = employee.cedula,
+                            nombre = "${employee.nombre1 ?: ""} ${employee.nombre2 ?: ""}".trim(),
+                            apellido = "${employee.apellido1 ?: ""} ${employee.apellido2 ?: ""}".trim(),
+                            cedula = employee.cedula,
+                            departamentoCodigo = employee.departamento,
+                            departamentoNombre = departamentoNombre,
+                            cargoCodigo = employee.cargo,
+                            cargoNombre = cargoNombre,
+                            activo = employee.estado == 1
+                        )
+                    } ?: emptyList()
+                    
+                    withContext(Dispatchers.Main) {
+                        employees.clear()
+                        employees.addAll(employeesUI)
+                        isLoading = false
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        errorMessage = "Error al cargar los empleados: ${result.exceptionOrNull()?.message}"
+                        isLoading = false
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    errorMessage = "Error inesperado: ${e.message}"
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    // Listas únicas para los filtros (extraídas de los datos reales)
 
     // Cargar empleados eliminados cuando se solicita
     LaunchedEffect(showDeletedEmployees) {
@@ -303,11 +399,14 @@ fun ListEmployeeScreen(
         roleOptions = roleNames,
         initialSelectedStatus = selectedStatusFilter,
         initialSelectedDepartment = selectedDepartmentFilter,
-        initialSelectedRole = selectedRoleFilter,
-        onApplyFilters = { status, department, role ->
+        initialSelectedRole = selectedRoleFilter,        onApplyFilters = { status, department, role ->
+            // Guardar los filtros seleccionados
             selectedStatusFilter = status
             selectedDepartmentFilter = department
             selectedRoleFilter = role
+            
+            // Recargar los datos con los nuevos filtros
+            loadEmployees(status, department, role)
         },
         onDismiss = { showFilterMenu = false }
     )
@@ -349,12 +448,23 @@ fun ListEmployeeScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Barra de búsqueda
+            ) {                // Barra de búsqueda                
                 DockedSearchBar(
                     query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    onSearch = { isSearchActive = false },
+                    onQueryChange = { 
+                        searchQuery = it
+                        // Recargar si la búsqueda está vacía o tiene más de 3 caracteres
+                        if (!showDeletedEmployees && (it.isEmpty() || it.length >= 3)) {
+                            loadEmployees(selectedStatusFilter, selectedDepartmentFilter, selectedRoleFilter)
+                        }
+                    },
+                    onSearch = { 
+                        isSearchActive = false
+                        // Si no estamos en la vista de eliminados, recargar con la búsqueda
+                        if (!showDeletedEmployees) {
+                            loadEmployees(selectedStatusFilter, selectedDepartmentFilter, selectedRoleFilter)
+                        }
+                    },
                     active = isSearchActive,
                     onActiveChange = { isSearchActive = it },
                     placeholder = { Text("Buscar empleado") },
@@ -401,15 +511,20 @@ fun ListEmployeeScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Pestaña Empleados Activos
+            ) {                // Pestaña Empleados Activos
                 Surface(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                        .clickable { showDeletedEmployees = false },
+                        .clickable { 
+                            if (showDeletedEmployees) {
+                                showDeletedEmployees = false
+                                // Recargar la lista de empleados activos con los filtros actuales
+                                loadEmployees(selectedStatusFilter, selectedDepartmentFilter, selectedRoleFilter)
+                            }
+                        },
                     color = if (!showDeletedEmployees) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                ) {
+                ){
                     Text(
                         text = "Empleados Activos",
                         style = MaterialTheme.typography.bodyMedium,
@@ -418,15 +533,20 @@ fun ListEmployeeScreen(
                         textAlign = TextAlign.Center
                     )
                 }
-                
-                // Pestaña Empleados Eliminados
+                  // Pestaña Empleados Eliminados
                 Surface(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                        .clickable { showDeletedEmployees = true },
+                        .clickable { 
+                            if (!showDeletedEmployees) {
+                                showDeletedEmployees = true
+                                // Recargar la lista de empleados eliminados
+                                loadDeletedEmployees()
+                            }
+                        },
                     color = if (showDeletedEmployees) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                ) {
+                ){
                     Text(
                         text = "Empleados Eliminados",
                         style = MaterialTheme.typography.bodyMedium,
@@ -496,7 +616,31 @@ fun ListEmployeeScreen(
                                 activo = employee.activo,
                                 isSelected = selectedEmployee == employee.id,
                                 onClick = { selectedEmployee = if (selectedEmployee == employee.id) null else employee.id },
-                                onActiveChange = { /* En una app real, aquí actualizaríamos el estado del empleado */ },                            
+                                onActiveChange = { isActive -> 
+                                    // Convertir el booleano a Int (1 para activo, 0 para inactivo)
+                                    val nuevoEstado = if (isActive) 1 else 0
+                                    
+                                    // Actualizar el estado del empleado en la base de datos
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        try {
+                                            val result = employeeRepository.updateEmployeeStatus(employee.id, nuevoEstado)
+                                            
+                                            if (result.isSuccess) {
+                                                // Recargar los datos para asegurar que reflejen el estado actual
+                                                withContext(Dispatchers.Main) {
+                                                    // Recargar con los filtros actuales para mantener la coherencia
+                                                    loadEmployees(selectedStatusFilter, selectedDepartmentFilter, selectedRoleFilter)
+                                                }
+                                            } else {
+                                                // Mostrar un mensaje de error (en una app real se mostraría un Toast o Snackbar)
+                                                println("Error al actualizar el estado del empleado: ${result.exceptionOrNull()?.message}")
+                                            }
+                                        } catch (e: Exception) {
+                                            // Manejar el error
+                                            println("Error inesperado: ${e.message}")
+                                        }
+                                    }
+                                },                            
                                 onView = { onNavigateToEmployeeDetail(employee.id) },
                                 onDelete = { 
                                     // Eliminar el empleado usando el repositorio
@@ -504,11 +648,13 @@ fun ListEmployeeScreen(
                                         try {
                                             val result = employeeRepository.deleteEmployee(employee.id)
 
-                                            if (result.isSuccess) {
-                                                // Refrescar la lista después de eliminar
+                                            if (result.isSuccess) {                                                // Refrescar la lista después de eliminar
                                                 withContext(Dispatchers.Main) {
                                                     // Eliminar el empleado de la lista local
                                                     employees.removeIf { it.id == employee.id }
+                                                    
+                                                    // Recargar empleados eliminados también para mostrar el recién eliminado
+                                                    loadDeletedEmployees()
                                                 }
                                             } else {
                                                 // Manejar el error
@@ -591,11 +737,12 @@ fun ListEmployeeScreen(
 
                                             if (result.isSuccess) {
                                                 // Refrescar la lista después de restaurar
-                                                withContext(Dispatchers.Main) {
-                                                    // Eliminar el empleado de la lista de eliminados
+                                                withContext(Dispatchers.Main) {                                                    // Eliminar el empleado de la lista de eliminados
                                                     deletedEmployees.removeIf { it.id == employee.id }
-                                                    // Recargar la lista de empleados activos
+                                                    
+                                                    // Recargar ambas listas para reflejar los cambios
                                                     loadDeletedEmployees()
+                                                    loadEmployees(selectedStatusFilter, selectedDepartmentFilter, selectedRoleFilter)
                                                 }
                                             } else {
                                                 // Manejar el error
