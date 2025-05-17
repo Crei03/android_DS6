@@ -83,8 +83,7 @@ fun HomeScreen() {
                             // Desactivar el modo subpantalla
                             inSubscreen = false
                         }
-                    )
-                    "add_admin" -> AddUserScreen(
+                    )                    "add_admin" -> AddUserScreen(
                         onBackClick = {
                             // Volver a la pestaña anterior
                             selectedTab = previousTab

@@ -7,6 +7,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.proyect.ds6.data.repository.EmployeeRepository
 import com.proyect.ds6.db.supabase
 import com.proyect.ds6.model.*
+import com.proyect.ds6.ui.admin.components.InfoCard
 import com.proyect.ds6.ui.employee.components.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -29,68 +33,44 @@ fun DetailsEmployeeScreen(
     cedula: String,
     onNavigateBack: () -> Unit = {}
 ) {
-    // Estado para controlar qué sección está expandida
     var expandedSection by remember { mutableStateOf<String?>(null) }
-    
-    // Estados para controlar el proceso de carga y errores
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    
-    // Estado para almacenar los datos del empleado
     var employee by remember { mutableStateOf<Employee?>(null) }
-    
-    // Estados para las listas de opciones
     var nacionalidades by remember { mutableStateOf<List<Nacionalidad>>(emptyList()) }
     var provincias by remember { mutableStateOf<List<Provincia>>(emptyList()) }
     var distritos by remember { mutableStateOf<List<Distrito>>(emptyList()) }
     var corregimientos by remember { mutableStateOf<List<Corregimiento>>(emptyList()) }
     var departamentos by remember { mutableStateOf<List<Departamento>>(emptyList()) }
     var cargos by remember { mutableStateOf<List<Cargo>>(emptyList()) }
-    
-    // Estados para los items seleccionados
     var selectedNacionalidad by remember { mutableStateOf<Nacionalidad?>(null) }
     var selectedProvincia by remember { mutableStateOf<Provincia?>(null) }
     var selectedDistrito by remember { mutableStateOf<Distrito?>(null) }
     var selectedCorregimiento by remember { mutableStateOf<Corregimiento?>(null) }
     var selectedDepartamento by remember { mutableStateOf<Departamento?>(null) }
     var selectedCargo by remember { mutableStateOf<Cargo?>(null) }
-    
-    // Instancia del repositorio
     val employeeRepository = remember { EmployeeRepository(supabase) }
-    
-    // Corrutina para cargar los datos
     val coroutineScope = rememberCoroutineScope()
-    
-    // Estado para controlar si hay cambios pendientes
     var hasChanges by remember { mutableStateOf(false) }
-    
-    // Estados para cada campo del formulario (información personal)
     var primerNombre by remember { mutableStateOf("") }
     var segundoNombre by remember { mutableStateOf("") }
     var primerApellido by remember { mutableStateOf("") }
     var segundoApellido by remember { mutableStateOf("") }
     var apellidoCasado by remember { mutableStateOf("") }
-    var genero by remember { mutableStateOf("") } // Usaremos String para el componente
-    var estadoCivil by remember { mutableStateOf("") } // Usaremos String para el componente
-    var fechaNacimiento by remember { mutableStateOf(System.currentTimeMillis()) } // Timestamp para DatePicker
+    var genero by remember { mutableStateOf("") }
+    var estadoCivil by remember { mutableStateOf("") }
+    var fechaNacimiento by remember { mutableStateOf(System.currentTimeMillis()) }
     var tipoSangre by remember { mutableStateOf("") }
-    
-    // Estados para información de contacto
     var celular by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    
-    // Estados para información de dirección
     var calle by remember { mutableStateOf("") }
     var casa by remember { mutableStateOf("") }
     var comunidad by remember { mutableStateOf("") }
-    
-    // Estados para información laboral
-    var fechaContratacion by remember { mutableStateOf(System.currentTimeMillis()) } // Timestamp para DatePicker
-    var estado by remember { mutableStateOf(0) } // Int para WorkInfoComponent
-    
-    // Función para convertir String de fecha a Long para DatePicker
+    var fechaContratacion by remember { mutableStateOf(System.currentTimeMillis()) }
+    var estado by remember { mutableStateOf(0) }
+
     fun parseDate(dateString: String?): Long {
         if (dateString.isNullOrEmpty()) return System.currentTimeMillis()
         return try {
@@ -100,18 +80,15 @@ fun DetailsEmployeeScreen(
             System.currentTimeMillis()
         }
     }
-    
-    // Función para convertir Long de DatePicker a String para la BD
+
     fun formatDate(timestamp: Long): String {
         val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         return format.format(Date(timestamp))
     }
-    
-    // Cargar datos del empleado y listas de opciones
+
     LaunchedEffect(cedula) {
         isLoading = true
         try {
-            // Cargar listas de opciones en paralelo
             val nacionalidadesDeferred = coroutineScope.launch { 
                 val result = employeeRepository.getNacionalidades()
                 if (result.isSuccess) {
@@ -154,7 +131,6 @@ fun DetailsEmployeeScreen(
                 }
             }
             
-            // Cargar datos del empleado
             val employeeResult = withContext(Dispatchers.IO) {
                 employeeRepository.getAllEmployees()
             }
@@ -166,7 +142,6 @@ fun DetailsEmployeeScreen(
                 if (foundEmployee != null) {
                     employee = foundEmployee
                     
-                    // Inicializar los estados con los datos del empleado
                     primerNombre = foundEmployee.nombre1 ?: ""
                     segundoNombre = foundEmployee.nombre2 ?: ""
                     primerApellido = foundEmployee.apellido1 ?: ""
@@ -189,7 +164,6 @@ fun DetailsEmployeeScreen(
                     fechaContratacion = parseDate(foundEmployee.fechaContrato)
                     estado = foundEmployee.estado ?: 0
                     
-                    // Esperar a que se carguen las listas de opciones
                     nacionalidadesDeferred.join()
                     provinciasDeferred.join()
                     distritosDeferred.join()
@@ -197,7 +171,6 @@ fun DetailsEmployeeScreen(
                     departamentosDeferred.join()
                     cargosDeferred.join()
                     
-                    // Seleccionar los items correspondientes en las listas
                     selectedNacionalidad = nacionalidades.find { it.pais == foundEmployee.nacionalidad }
                     selectedProvincia = provincias.find { it.codigo_provincia == foundEmployee.provincia }
                     selectedDistrito = distritos.find { it.codigo == foundEmployee.distrito }
@@ -275,7 +248,6 @@ fun DetailsEmployeeScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 employee?.let { emp ->
-                    // Cabecera con información básica del empleado
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
@@ -299,217 +271,258 @@ fun DetailsEmployeeScreen(
                         }
                     }
                     
-                    // Botón para información personal
-                    Button(
-                        onClick = { 
-                            expandedSection = if (expandedSection == "personal") null else "personal"
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text("Información Personal")
-                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     
-                    // Componente de información personal expandible
-                    if (expandedSection == "personal") {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                            elevation = CardDefaults.cardElevation(2.dp),
-                            modifier = Modifier.fillMaxWidth()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            PersonalInfoComponent(
-                                cedula = emp.cedula,
-                                onCedulaChange = { /* La cédula no se puede modificar */ },
-                                primerNombre = primerNombre,
-                                onPrimerNombreChange = { primerNombre = it; hasChanges = true },
-                                segundoNombre = segundoNombre,
-                                onSegundoNombreChange = { segundoNombre = it; hasChanges = true },
-                                primerApellido = primerApellido,
-                                onPrimerApellidoChange = { primerApellido = it; hasChanges = true },
-                                segundoApellido = segundoApellido,
-                                onSegundoApellidoChange = { segundoApellido = it; hasChanges = true },
-                                fechaNacimiento = fechaNacimiento,
-                                onFechaNacimientoChange = { fechaNacimiento = it; hasChanges = true },
-                                genero = genero,
-                                onGeneroChange = { genero = it; hasChanges = true },
-                                estadoCivil = estadoCivil,
-                                onEstadoCivilChange = { estadoCivil = it; hasChanges = true },
-                                tipoSangre = tipoSangre,
-                                onTipoSangreChange = { tipoSangre = it; hasChanges = true },
-                                nationalities = nacionalidades,
-                                selectedNacionalidad = selectedNacionalidad,
-                                onNacionalidadSelected = { 
-                                    selectedNacionalidad = it
-                                    hasChanges = true 
+                            InfoCard(
+                                icon = Icons.Default.Person,
+                                title = "Información Personal",
+                                subtitle = "Datos básicos del empleado",
+                                backgroundColor = if (expandedSection == "personal") 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (expandedSection == "personal") 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                iconTint = if (expandedSection == "personal") 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    MaterialTheme.colorScheme.primary,
+                                onClick = {
+                                    expandedSection = if (expandedSection == "personal") null else "personal"
+                                }
+                            )
+                            
+                            InfoCard(
+                                icon = Icons.Default.LocationOn,
+                                title = "Dirección",
+                                subtitle = "Ubicación del empleado",
+                                backgroundColor = if (expandedSection == "direccion") 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (expandedSection == "direccion") 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                iconTint = if (expandedSection == "direccion") 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    MaterialTheme.colorScheme.primary,
+                                onClick = {
+                                    expandedSection = if (expandedSection == "direccion") null else "direccion"
+                                }
+                            )
+                        }
+                        
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            InfoCard(
+                                icon = Icons.Default.Phone,
+                                title = "Información de Contacto",
+                                subtitle = "Teléfono y correo",
+                                backgroundColor = if (expandedSection == "contacto") 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (expandedSection == "contacto") 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                iconTint = if (expandedSection == "contacto") 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    MaterialTheme.colorScheme.primary,
+                                onClick = {
+                                    expandedSection = if (expandedSection == "contacto") null else "contacto"
+                                }
+                            )
+                            
+                            InfoCard(
+                                icon = Icons.Default.LocationOn,
+                                title = "Información Laboral",
+                                subtitle = "Cargo y departamento",
+                                backgroundColor = if (expandedSection == "laboral") 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (expandedSection == "laboral") 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                iconTint = if (expandedSection == "laboral") 
+                                    MaterialTheme.colorScheme.onPrimary 
+                                else 
+                                    MaterialTheme.colorScheme.primary,
+                                onClick = {
+                                    expandedSection = if (expandedSection == "laboral") null else "laboral"
                                 }
                             )
                         }
                     }
                     
-                    // Botón para información de contacto
-                    Button(
-                        onClick = { 
-                            expandedSection = if (expandedSection == "contacto") null else "contacto"
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text("Información de Contacto")
-                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Componente de información de contacto expandible
-                    if (expandedSection == "contacto") {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                            elevation = CardDefaults.cardElevation(2.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            ContactInfoComponent(
-                                celular = celular,
-                                onCelularChange = { celular = it; hasChanges = true },
-                                telefono = telefono,
-                                onTelefonoChange = { telefono = it; hasChanges = true },
-                                email = email,
-                                onEmailChange = { email = it; hasChanges = true },
-                                password = password,
-                                onPasswordChange = { password = it; hasChanges = true }
-                            )
-                        }
-                    }
-                    
-                    // Botón para información de dirección
-                    Button(
-                        onClick = { 
-                            expandedSection = if (expandedSection == "direccion") null else "direccion"
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text("Dirección")
-                    }
-                    
-                    // Componente de dirección expandible
-                    if (expandedSection == "direccion") {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                            elevation = CardDefaults.cardElevation(2.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            AddressInfoComponent(
-                                provinces = provincias,
-                                selectedProvincia = selectedProvincia,
-                                onProvinciaSelected = { 
-                                    selectedProvincia = it
-                                    // Resetear distrito y corregimiento cuando cambia la provincia
-                                    selectedDistrito = null
-                                    selectedCorregimiento = null
-                                    hasChanges = true 
-                                },
-                                distritos = distritos.filter { 
-                                    selectedProvincia?.codigo_provincia == it.codigo_provincia 
-                                },
-                                selectedDistrito = selectedDistrito,
-                                onDistritoSelected = { 
-                                    selectedDistrito = it
-                                    // Resetear corregimiento cuando cambia el distrito
-                                    selectedCorregimiento = null
-                                    hasChanges = true 
-                                },
-                                corregimientos = corregimientos.filter { 
-                                    selectedDistrito?.codigo == it.codigo_distrito &&
-                                    selectedProvincia?.codigo_provincia == it.codigo_provincia
-                                },
-                                selectedCorregimiento = selectedCorregimiento,
-                                onCorregimientoSelected = { 
-                                    selectedCorregimiento = it
-                                    hasChanges = true 
-                                },
-                                calle = calle,
-                                onCalleChange = { calle = it; hasChanges = true },
-                                casa = casa,
-                                onCasaChange = { casa = it; hasChanges = true },
-                                comunidad = comunidad,
-                                onComunidadChange = { comunidad = it; hasChanges = true }
-                            )
-                        }
-                    }
-                    
-                    // Botón para información laboral
-                    Button(
-                        onClick = { 
-                            expandedSection = if (expandedSection == "laboral") null else "laboral"
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Text("Información Laboral")
-                    }
-                    
-                    // Componente de información laboral expandible
-                    if (expandedSection == "laboral") {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
-                            elevation = CardDefaults.cardElevation(2.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            WorkInfoComponent(
-                                departamentos = departamentos,
-                                selectedDepartamento = selectedDepartamento,
-                                onDepartamentoSelected = { 
-                                    selectedDepartamento = it
-                                    // Resetear cargo cuando cambia el departamento
-                                    if (selectedCargo?.dep_codigo != it?.codigo) {
-                                        selectedCargo = null
+                    if (expandedSection != null) {
+                        if (expandedSection == "personal") {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                                elevation = CardDefaults.cardElevation(2.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                PersonalInfoComponent(
+                                    cedula = emp.cedula,
+                                    onCedulaChange = { },
+                                    primerNombre = primerNombre,
+                                    onPrimerNombreChange = { primerNombre = it; hasChanges = true },
+                                    segundoNombre = segundoNombre,
+                                    onSegundoNombreChange = { segundoNombre = it; hasChanges = true },
+                                    primerApellido = primerApellido,
+                                    onPrimerApellidoChange = { primerApellido = it; hasChanges = true },
+                                    segundoApellido = segundoApellido,
+                                    onSegundoApellidoChange = { segundoApellido = it; hasChanges = true },
+                                    fechaNacimiento = fechaNacimiento,
+                                    onFechaNacimientoChange = { fechaNacimiento = it; hasChanges = true },
+                                    genero = genero,
+                                    onGeneroChange = { genero = it; hasChanges = true },
+                                    estadoCivil = estadoCivil,
+                                    onEstadoCivilChange = { estadoCivil = it; hasChanges = true },
+                                    tipoSangre = tipoSangre,
+                                    onTipoSangreChange = { tipoSangre = it; hasChanges = true },
+                                    nationalities = nacionalidades,
+                                    selectedNacionalidad = selectedNacionalidad,
+                                    onNacionalidadSelected = { 
+                                        selectedNacionalidad = it
+                                        hasChanges = true 
                                     }
-                                    hasChanges = true 
-                                },
-                                cargos = cargos.filter { 
-                                    selectedDepartamento?.codigo == it.dep_codigo || it.dep_codigo == null
-                                },
-                                selectedCargo = selectedCargo,
-                                onCargoSelected = { 
-                                    selectedCargo = it
-                                    hasChanges = true 
-                                },
-                                fechaContratacion = fechaContratacion,
-                                onFechaContratacionChange = { fechaContratacion = it; hasChanges = true },
-                                estado = estado,
-                                onEstadoChange = { estado = it; hasChanges = true }
-                            )
+                                )
+                            }
+                        }
+                        
+                        if (expandedSection == "contacto") {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                                elevation = CardDefaults.cardElevation(2.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                ContactInfoComponent(
+                                    celular = celular,
+                                    onCelularChange = { celular = it; hasChanges = true },
+                                    telefono = telefono,
+                                    onTelefonoChange = { telefono = it; hasChanges = true },
+                                    email = email,
+                                    onEmailChange = { email = it; hasChanges = true },
+                                    password = password,
+                                    onPasswordChange = { password = it; hasChanges = true }
+                                )
+                            }
+                        }
+                        
+                        if (expandedSection == "direccion") {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                                elevation = CardDefaults.cardElevation(2.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                AddressInfoComponent(
+                                    provinces = provincias,
+                                    selectedProvincia = selectedProvincia,
+                                    onProvinciaSelected = { 
+                                        selectedProvincia = it
+                                        selectedDistrito = null
+                                        selectedCorregimiento = null
+                                        hasChanges = true 
+                                    },
+                                    distritos = distritos.filter { 
+                                        selectedProvincia?.codigo_provincia == it.codigo_provincia 
+                                    },
+                                    selectedDistrito = selectedDistrito,
+                                    onDistritoSelected = { 
+                                        selectedDistrito = it
+                                        selectedCorregimiento = null
+                                        hasChanges = true 
+                                    },
+                                    corregimientos = corregimientos.filter { 
+                                        selectedDistrito?.codigo == it.codigo_distrito
+                                    },
+                                    selectedCorregimiento = selectedCorregimiento,
+                                    onCorregimientoSelected = { 
+                                        selectedCorregimiento = it
+                                        hasChanges = true 
+                                    },
+                                    calle = calle,
+                                    onCalleChange = { calle = it; hasChanges = true },
+                                    casa = casa,
+                                    onCasaChange = { casa = it; hasChanges = true },
+                                    comunidad = comunidad,
+                                    onComunidadChange = { comunidad = it; hasChanges = true }
+                                )
+                            }
+                        }
+
+                        if (expandedSection == "laboral") {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
+                                elevation = CardDefaults.cardElevation(2.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                WorkInfoComponent(
+                                    departamentos = departamentos,
+                                    selectedDepartamento = selectedDepartamento,
+                                    onDepartamentoSelected = { 
+                                        selectedDepartamento = it
+                                        if (selectedCargo?.dep_codigo != it?.codigo) {
+                                            selectedCargo = null
+                                        }
+                                        hasChanges = true 
+                                    },
+                                    cargos = cargos.filter { 
+                                        selectedDepartamento?.codigo == it.dep_codigo || it.dep_codigo == null
+                                    },
+                                    selectedCargo = selectedCargo,
+                                    onCargoSelected = { 
+                                        selectedCargo = it
+                                        hasChanges = true 
+                                    },
+                                    fechaContratacion = fechaContratacion,
+                                    onFechaContratacionChange = { fechaContratacion = it; hasChanges = true },
+                                    estado = estado,
+                                    onEstadoChange = { estado = it; hasChanges = true }
+                                )
+                            }
                         }
                     }
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    // Botones de acción (Guardar y Cancelar)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        // Botón Guardar
                         Button(
                             onClick = {
                                 coroutineScope.launch {
                                     try {
-                                        // Convertir valores String a Int donde corresponda
                                         val generoInt = genero.toIntOrNull()
                                         val estadoCivilInt = estadoCivil.toIntOrNull()
                                         val celularInt = celular.toIntOrNull()
                                         val telefonoInt = telefono.toIntOrNull()
                                         
-                                        // Crear el objeto Employee actualizado
                                         val updatedEmployee = Employee(
                                             cedula = emp.cedula,
                                             prefijo = emp.prefijo,
@@ -523,7 +536,7 @@ fun DetailsEmployeeScreen(
                                             genero = generoInt,
                                             estadoCivil = estadoCivilInt,
                                             tipoSangre = tipoSangre.takeIf { it.isNotEmpty() },
-                                            usaAc = emp.usaAc, // Mantener valor original
+                                            usaAc = emp.usaAc,
                                             fechaNacimiento = formatDate(fechaNacimiento).takeIf { it.isNotEmpty() },
                                             celular = celularInt,
                                             telefono = telefonoInt,
@@ -542,27 +555,18 @@ fun DetailsEmployeeScreen(
                                             estado = estado
                                         )
                                         
-                                        // Actualizar el empleado en la base de datos
-                                        // Note: Esta es una versión simplificada, dependiendo de la API real
-                                        // del repositorio podrías necesitar un método específico para actualizar
                                         val result = withContext(Dispatchers.IO) {
-                                            // Supongamos que tienes un método para actualizar
-                                            // employeeRepository.updateEmployee(updatedEmployee)
-                                            
-                                            // De momento solo mostraremos un log
                                             Log.d("DetailsEmployee", "Actualizando empleado: ${updatedEmployee}")
                                             Result.success(Unit)
                                         }
                                         
                                         if (result.isSuccess) {
                                             hasChanges = false
-                                            onNavigateBack() // Volver a la pantalla anterior
+                                            onNavigateBack()
                                         } else {
-                                            // Mostrar error
                                             errorMessage = "Error al actualizar el empleado: ${result.exceptionOrNull()?.message}"
                                         }
                                     } catch (e: Exception) {
-                                        // Manejar errores
                                         errorMessage = "Error inesperado: ${e.message}"
                                     }
                                 }
@@ -573,12 +577,9 @@ fun DetailsEmployeeScreen(
                             Text("Guardar")
                         }
                         
-                        // Botón Cancelar
                         OutlinedButton(
                             onClick = {
                                 if (hasChanges) {
-                                    // Aquí podrías mostrar un diálogo de confirmación
-                                    // Por simplicidad, solo volvemos a la pantalla anterior
                                 }
                                 onNavigateBack()
                             },

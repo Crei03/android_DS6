@@ -184,6 +184,15 @@ fun AddEmployee(
                 .verticalScroll(scrollState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Añadimos el indicador de progreso de pasos
+            StepProgressIndicator(
+                currentStep = currentStep,
+                totalSteps = totalSteps,
+                stepTitle = stepTitles[currentStep - 1]
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
             // Progress indicator for options loading
             if (isLoadingOptions) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
