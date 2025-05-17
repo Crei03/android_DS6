@@ -108,4 +108,18 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
             Result.failure(e)
         }
     }
+
+    /**
+     * Obtiene todos los empleados de la tabla 'empleados'.
+     * @return Result<List<Employee>> con la lista de empleados en caso de éxito o un error en caso de fallo.
+     */
+    suspend fun getAllEmployees(): Result<List<Employee>> {
+        return try {
+            val employees = supabaseClient.postgrest["empleados"].select().decodeList<Employee>()
+            Result.success(employees)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
 }

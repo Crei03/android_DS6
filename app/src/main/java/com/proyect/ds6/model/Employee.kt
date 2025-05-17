@@ -128,37 +128,3 @@ data class Employee(
     val estado: Int? = null // DEFAULT NULL en la BD
 )
 
-
-// Puedes crear una lista estática de empleados para pruebas
-val staticEmployees = listOf(
-    Employee(
-        cedula = "8-123-456",
-        nombre1 = "Carlos",
-        apellido1 = "Pérez",
-        genero = 1, // Masculino
-        estadoCivil = 1, // Soltero/a
-        tipoSangre = "A+",
-        fechaNacimiento = "1990-01-01",
-        nacionalidad = "Panameña",
-        celular = 60000000,
-        correo = "carlos@empresa.com",
-        departamento = "TI",
-        cargo = "Desarrollador",
-        estado = 1 // Activo
-    ),
-    Employee(
-        cedula = "4-567-890",
-        nombre1 = "Ana",
-        apellido1 = "Gómez",
-        genero = 2, // Femenino
-        estadoCivil = 2, // Casado/a
-        tipoSangre = "O-",
-        fechaNacimiento = "1985-05-10",
-        nacionalidad = "Panameña",
-        celular = 61234567,
-        correo = "ana@empresa.com",
-        departamento = "Recursos Humanos",
-        cargo = "Jefa RRHH",
-        estado = 1 // Activo
-    )
-)
