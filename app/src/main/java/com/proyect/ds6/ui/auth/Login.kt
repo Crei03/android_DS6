@@ -32,13 +32,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -155,7 +161,22 @@ fun LoginScreen() {
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
     var isLoginEnabled by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    
+    // Estado para mensajes de error
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    // Efecto para mostrar errores en SnackBar
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            errorMessage = null
+        }
+    }
 
     // Degradado para el fondo
     val gradientColors = listOf(
@@ -184,6 +205,15 @@ fun LoginScreen() {
                     )
                 )
             },
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState) { data ->
+                    Snackbar(
+                        snackbarData = data,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            },
             containerColor = Color.Transparent  // Fondo transparente para el Scaffold
         ) { innerPadding ->
             Column(
@@ -194,11 +224,10 @@ fun LoginScreen() {
                     .verticalScroll(scrollState),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Título "FormAntro" animado, 20px debajo del TopAppBar
-                AnimatedFormAntroTitle(modifier = Modifier.padding(top = 20.dp))
+                // Título "FormAntro" estático, 20px debajo del TopAppBar
+                FormAntroTitle(modifier = Modifier.padding(top = 20.dp))
                 
                 Spacer(modifier = Modifier.height(32.dp))
-
                 OutlinedTextField(
                     value = cedula,
                     onValueChange = { newValue ->
@@ -214,11 +243,17 @@ fun LoginScreen() {
                     },
                     label = { Text("Cédula") },
                     modifier = Modifier
-                        .fillMaxWidth()
                         .background(
                             color = Color.White,
                             shape = RoundedCornerShape(8.dp)
-                        ),
+                        )
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        disabledContainerColor = Color.White,
+                    ),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Phone,
@@ -229,19 +264,23 @@ fun LoginScreen() {
                     )
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Campo de contraseña
+                Spacer(modifier = Modifier.height(16.dp))                // Campo de contraseña
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Contraseña") },
                     modifier = Modifier
-                        .fillMaxWidth()
                         .background(
                             color = Color.White,
                             shape = RoundedCornerShape(8.dp)
-                        ),
+                        )
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        disabledContainerColor = Color.White,
+                    ),
                     singleLine = true,
                     visualTransformation = if (isPasswordVisible)
                         VisualTransformation.None
@@ -270,40 +309,25 @@ fun LoginScreen() {
                     }
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))                // Estado para mostrar mensajes de error
-                var errorMessage by remember { mutableStateOf<String?>(null) }
-                var isLoading by remember { mutableStateOf(false) }
-                val context = LocalContext.current
-                
-                // Mostrar mensaje de error si existe
-                errorMessage?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
-                
-                // Botón de inicio de sesión
+                Spacer(modifier = Modifier.height(24.dp))                // Botón de inicio de sesión
                 Button(
                     onClick = {
                         isLoading = true
-                        errorMessage = null
                         
                         // Validar credenciales
                         if (cedula.isBlank()) {
-                            errorMessage = "Por favor, ingrese su cédula"
                             isLoading = false
+                            errorMessage = "Por favor, ingrese su cédula"
                             return@Button
                         }
                         
                         if (password.isBlank()) {
-                            errorMessage = "Por favor, ingrese su contraseña"
                             isLoading = false
+                            errorMessage = "Por favor, ingrese su contraseña"
                             return@Button
                         }
-                                  // Intentar autenticación
+                        
+                        // Intentar autenticación
                         authenticateUser(
                             cedula = cedula,
                             password = password,
@@ -320,20 +344,17 @@ fun LoginScreen() {
                                 (context as? ComponentActivity)?.finish()
                             },
                             onError = { message ->
-                                errorMessage = message
                                 isLoading = false
+                                errorMessage = message
                             }
                         )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
-                        .height(48.dp)
-                        .background(
-                            color = Color.White,
-                            shape = RoundedCornerShape(8.dp)
-                        ),
+                        .height(48.dp),
                     enabled = isLoginEnabled && !isLoading,
+                    shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
@@ -346,6 +367,7 @@ fun LoginScreen() {
                         )
                     } else {
                         Text("Iniciar Sesión")
+
                     }
                 }
             }
@@ -354,30 +376,16 @@ fun LoginScreen() {
 }
 
 @Composable
-fun AnimatedFormAntroTitle(modifier: Modifier = Modifier) {
-    val infiniteTransition = rememberInfiniteTransition(label = "FormAntro Animation")
-    
-    // Animación de escala
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = EaseInOutQuad),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
-
+fun FormAntroTitle(modifier: Modifier = Modifier) {
     Text(
         text = "FormAntro",
         style = TextStyle(
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White,  // Título en color blanco
+            color = Color.White,
             textAlign = TextAlign.Center
         ),
         modifier = modifier
-            .scale(scale)
             .padding(horizontal = 16.dp)
     )
 }
