@@ -53,6 +53,9 @@ fun HomeScreen() {
     // Estado para el ID de la opción seleccionada
     var selectedOption by remember { mutableStateOf("") }
     
+    // Estado para almacenar la cédula del empleado seleccionado
+    var selectedEmployeeCedula by remember { mutableStateOf("") }
+    
     Scaffold(
         bottomBar = {
             // Si no estamos en una subpantalla, mostrar la barra de navegación
@@ -105,6 +108,15 @@ fun HomeScreen() {
                             inSubscreen = false
                         }
                     )
+                    "employee_detail" -> DetailsEmployeeScreen(
+                        cedula = selectedEmployeeCedula,
+                        onNavigateBack = {
+                            // Volver a la pestaña anterior
+                            selectedTab = previousTab
+                            // Desactivar el modo subpantalla
+                            inSubscreen = false
+                        }
+                    )
                     else -> Text(
                         "Opción no reconocida",
                         modifier = Modifier.align(Alignment.Center)
@@ -114,7 +126,22 @@ fun HomeScreen() {
                 // Contenido normal basado en la pestaña seleccionada
                 when (selectedTab) {
                     0 -> Dashboard()  // Mostramos el Dashboard en la pestaña de Inicio
-                    1 -> ListEmployeeScreen()
+                    1 -> ListEmployeeScreen(
+                        onNavigateToAddEmployee = {
+                            // Redirigir a la pantalla de añadir empleados
+                            previousTab = selectedTab
+                            inSubscreen = true
+                            selectedOption = "add_employee"
+                        },
+                        onNavigateToEmployeeDetail = { cedula ->
+                            // Aquí implementamos la navegación a la pantalla de detalles
+                            previousTab = selectedTab
+                            inSubscreen = true
+                            selectedOption = "employee_detail"
+                            // Guardamos la cédula del empleado seleccionado
+                            selectedEmployeeCedula = cedula
+                        }
+                    )
                     2 -> AddOptionsScreen(
                         onOptionSelected = { optionId ->
                             // Guardamos la pestaña actual para volver a ella después
