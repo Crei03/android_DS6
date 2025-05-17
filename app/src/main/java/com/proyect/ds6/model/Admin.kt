@@ -5,10 +5,6 @@ import kotlinx.serialization.SerialName
 
 @Serializable
 data class Admin(
-    // El ID del usuario, generado automáticamente por la base de datos
-    // Aunque serial primary key suele ser NOT NULL, lo mantenemos como anulable por si acaso la consulta no lo incluye
-    @SerialName("id")
-    val id: Int? = null,
 
     // La cédula del usuario - Hacemos anulable para coincidir con DEFAULT NULL en la BD
     @SerialName("cedula")

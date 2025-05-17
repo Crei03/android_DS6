@@ -27,6 +27,21 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
     }
 
     /**
+     * Fetches the list of users from the 'usuarios' table in Supabase.
+     * @return Result<List<Admin>> indicating success or failure.
+     */
+    // funcion para agregar usuarios (admin)
+    suspend fun addUser(admin: Admin): Result<Unit> {
+        return try {
+            supabaseClient.postgrest["usuarios"].insert(admin)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Fetches the list of Nacionalidades from the database.
      * @return Result<List<Nacionalidad>> indicating success or failure.
      */
@@ -176,4 +191,6 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
             Result.failure(e)
         }
     }
+
+    
 }
