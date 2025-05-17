@@ -29,11 +29,22 @@ sealed class AdminSaveState {
 }
 
 // ViewModel para la pantalla de Admin
-class AdminViewModel(private val repository: EmployeeRepository) : ViewModel() {
+class AdminViewModel(val repository: EmployeeRepository) : ViewModel() {
     
     // Estado de la operación de guardado
     private val _saveState = MutableStateFlow<AdminSaveState>(AdminSaveState.Idle)
     val saveState: StateFlow<AdminSaveState> = _saveState
+
+    // Funciones para el dashboard
+    suspend fun getEmployeeStats() = repository.getEmployeeStats()
+    
+    suspend fun getRecentEmployees(limit: Int = 5) = repository.getRecentEmployees(limit)
+    
+    suspend fun getDepartmentDistribution() = repository.getDepartmentDistribution()
+    
+    suspend fun getGenderDistribution() = repository.getGenderDistribution()
+    
+    suspend fun getAgeDistribution() = repository.getAgeDistribution()
 
     /**
      * Guarda un nuevo usuario administrador en la base de datos

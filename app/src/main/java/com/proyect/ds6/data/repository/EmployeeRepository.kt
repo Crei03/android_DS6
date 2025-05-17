@@ -1,11 +1,16 @@
 package com.proyect.ds6.data.repository
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.proyect.ds6.model.* // Import all your data classes
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
+import java.time.LocalDate
+import java.time.Period
 
 // Repository responsible for employee-related data operations and fetching lookup data
 class EmployeeRepository(private val supabaseClient: SupabaseClient) {
@@ -47,7 +52,10 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
      */
     suspend fun getNacionalidades(): Result<List<Nacionalidad>> {
         return try {
-            val data = supabaseClient.postgrest["nacionalidad"].select().decodeList<Nacionalidad>()
+            val data = supabaseClient.postgrest["nacionalidad"].select{
+                order("pais", order = Order.ASCENDING)
+            }
+                .decodeList<Nacionalidad>()
             Result.success(data)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -248,12 +256,15 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
             e.printStackTrace()
             Result.failure(e)
         }
-    }    /**
+    }    
+
+    /**
      * Obtiene todos los empleados aplicando filtros opcionales.
      * @param estadoFilter El estado por el cual filtrar (1 = activo, 0 = inactivo, null = todos)
      * @param searchTerm Término para buscar en nombres, apellidos o cédula (null = sin búsqueda)
      * @return Result<List<Employee>> con la lista filtrada de empleados en caso de éxito o un error en caso de fallo.
-     */suspend fun getFilteredEmployees(
+     */
+    suspend fun getFilteredEmployees(
         estadoFilter: Int? = null,
         searchTerm: String? = null
     ): Result<List<Employee>> {
@@ -281,6 +292,182 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
             
             val employees = query.decodeList<Employee>()
             Result.success(employees)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Obtiene conteo de empleados por estado
+     * @return Result<Map<String, Int>> con conteo de empleados: activos, inactivos, total
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun getEmployeeStats(): Result<Map<String, Int>> {
+        return try {
+            val allEmployees = getAllEmployees().getOrDefault(emptyList())
+            val totalCount = allEmployees.size
+            val activeCount = allEmployees.count { it.estado == 1 }
+            val inactiveCount = allEmployees.count { it.estado == 0 }
+            
+            val deletedEmployees = getDeletedEmployees().getOrDefault(emptyList())
+            val deletedCount = deletedEmployees.size
+            
+            // Contar empleados añadidos en el último mes
+            val currentDate = java.time.LocalDate.now()
+            val oneMonthAgo = currentDate.minusMonths(1)
+            val newEmployeesCount = allEmployees.count {
+                if (it.fechaContrato.isNullOrBlank()) {
+                    false
+                } else {
+                    val contractDate = java.time.LocalDate.parse(it.fechaContrato)
+                    contractDate.isAfter(oneMonthAgo)
+                }
+            }
+            
+            val stats = mapOf(
+                "total" to totalCount,
+                "active" to activeCount,
+                "inactive" to inactiveCount,
+                "deleted" to deletedCount,
+                "newThisMonth" to newEmployeesCount
+            )
+            
+            Result.success(stats)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Obtiene los empleados añadidos recientemente (últimos 5)
+     * @param limit Número de empleados a retornar (por defecto 5)
+     * @return Result<List<EmployeeData>> con la lista de empleados recientes
+     */    suspend fun getRecentEmployees(limit: Int = 5): Result<List<Map<String, String>>> {
+        return try {
+            val employees = supabaseClient.postgrest["empleados"]
+                .select {
+                    order("f_contra", Order.DESCENDING)
+                    limit(limit.toLong())
+                } 
+                .decodeList<Employee>()
+                
+            val recentEmployees = employees.map { employee ->
+                val fullName = "${employee.nombre1 ?: ""} ${employee.apellido1 ?: ""}"
+                
+                mapOf(
+                    "id" to employee.cedula,
+                    "fullName" to fullName.trim(),
+                    "dateAdded" to (employee.fechaContrato ?: "")
+                )
+            }
+            
+            Result.success(recentEmployees)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Obtiene la distribución de empleados por departamento
+     * @return Result<List<Map<String, Any>>> con la lista de departamentos y conteos
+     */
+    suspend fun getDepartmentDistribution(): Result<List<Map<String, Any>>> {
+        return try {
+            val employees = getAllEmployees().getOrDefault(emptyList())
+            val departmentCounts = employees
+                .filter { it.estado == 1 } // Solo contar empleados activos
+                .groupBy { it.departamento ?: "Sin asignar" }
+                .mapValues { it.value.size }
+                
+            // Obtener los nombres de departamentos completos si es posible
+            val departamentos = getDepartamentos().getOrDefault(emptyList())
+            val departmentMap = departamentos.associateBy { it.codigo }
+            
+            val departmentData = departmentCounts.map { (depCode, count) ->
+                val departmentName = departmentMap[depCode]?.nombre ?: depCode
+                mapOf(
+                    "name" to departmentName,
+                    "employeeCount" to count
+                )
+            }.sortedByDescending { it["employeeCount"] as Int }
+            
+            Result.success(departmentData)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Obtiene la distribución de empleados por género
+     * @return Result<Map<String, Int>> con conteo por género
+     */
+    suspend fun getGenderDistribution(): Result<Map<String, Int>> {
+        return try {
+            val employees = getAllEmployees().getOrDefault(emptyList())
+                .filter { it.estado == 1 } // Solo contar empleados activos
+            
+            val maleCount = employees.count { it.genero == 0 }
+            val femaleCount = employees.count { it.genero == 1 }
+            
+            val genderData = mapOf(
+                "male" to maleCount,
+                "female" to femaleCount
+            )
+            
+            Result.success(genderData)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Obtiene la distribución de empleados por rango de edad
+     * @return Result<List<Map<String, Any>>> con rangos de edad y conteos
+     */
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun getAgeDistribution(): Result<List<Map<String, Any>>> {
+        return try {
+            val employees = getAllEmployees().getOrDefault(emptyList())
+                .filter { it.estado == 1 } // Solo contar empleados activos
+            
+            val today = java.time.LocalDate.now()
+            
+            // Calcular edades y agrupar por rango
+            val ageGroups = employees
+                .filter { !it.fechaNacimiento.isNullOrBlank() }.mapNotNull { employee ->
+                    try {
+                        val birthDate = LocalDate.parse(employee.fechaNacimiento)
+                        Period.between(birthDate, today).years
+                    } catch (e: Exception) {
+                        null // Ignorar fechas que no se pueden parsear
+                    }
+                }
+                .groupBy { age ->
+                    when {
+                        age < 25 -> "18-24"
+                        age in 25..34 -> "25-34"
+                        age in 35..44 -> "35-44"
+                        age in 45..54 -> "45-54"
+                        else -> "55+"
+                    }
+                }
+                .mapValues { it.value.size }
+            
+            // Ordenar por rango de edad
+            val ageRangeOrder = listOf("18-24", "25-34", "35-44", "45-54", "55+")
+            val ageDistribution = ageRangeOrder.map { range ->
+                mapOf(
+                    "label" to range,
+                    "count" to (ageGroups[range] ?: 0)
+                )
+            }
+            
+            Result.success(ageDistribution)
         } catch (e: Exception) {
             e.printStackTrace()
             Result.failure(e)

@@ -179,10 +179,9 @@ fun HomeScreen() {
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
-            } else {
-                // Contenido normal basado en la pestaña seleccionada
+            } else {                // Contenido normal basado en la pestaña seleccionada
                 when (selectedTab) {
-                    0 -> Dashboard()  // Mostramos el Dashboard en la pestaña de Inicio
+                    0 -> AdminDashboard()  // Mostramos el Dashboard en la pestaña de Inicio
                     1 -> ListEmployeeScreen(
                         onNavigateToAddEmployee = {
                             // Redirigir a la pantalla de añadir empleados
@@ -211,11 +210,10 @@ fun HomeScreen() {
                         onBackClick = {
                             // No se necesita esta función aquí, pero la incluimos por completitud
                         },
-                        selectedTabIndex = selectedTab,
-                        onTabSelected = { newTab -> selectedTab = newTab }
+                        selectedTabIndex = selectedTab,                        onTabSelected = { newTab -> selectedTab = newTab }
                     )
                     3 -> ProfileContent()
-                    else -> Dashboard() // Por defecto mostrar Dashboard
+                    else -> AdminDashboard() // Por defecto mostrar Dashboard
                 }
             }
             

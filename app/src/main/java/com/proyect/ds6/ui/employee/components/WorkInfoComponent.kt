@@ -15,8 +15,11 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
+import com.proyect.ds6.R
 
-import androidx.compose.ui.Alignment // Import Alignment for the DatePicker dialog buttons
+
 
 // Import the data classes for Cargo and Departamento
 import com.proyect.ds6.model.Cargo
@@ -165,7 +168,7 @@ fun WorkInfoComponent(
             ExposedDropdownMenuBox(
                 expanded = expandedEstado,
                 onExpandedChange = { expandedEstado = it },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth() // <-- Asegura ancho completo
             ) {
                 OutlinedTextField(
                     value = when (estado) {
@@ -177,7 +180,9 @@ fun WorkInfoComponent(
                     readOnly = true,
                     label = { Text("Estado") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedEstado) },
-                    modifier = Modifier.menuAnchor()
+                    modifier = Modifier
+                        .fillMaxWidth() // <-- Asegura ancho completo
+                        .menuAnchor()
                 )
 
                 ExposedDropdownMenu(
@@ -196,7 +201,7 @@ fun WorkInfoComponent(
                 }
             }
 
-// Fecha de Contratación
+            // Fecha de Contratación
             OutlinedTextField(
                 value = if (fechaContratacion > 0) {
                     val calendar = Calendar.getInstance()
@@ -211,7 +216,10 @@ fun WorkInfoComponent(
                 readOnly = true,
                 trailingIcon = {
                     IconButton(onClick = { showDatePicker = true }) {
-                        Icon(Icons.Filled.Info, contentDescription = "Seleccionar fecha")
+                        Icon(
+                            imageVector = ImageVector.vectorResource(id = R.drawable.calendar_month_24px),
+                            contentDescription = "Seleccionar fecha"
+                        )
                     }
                 }
             )

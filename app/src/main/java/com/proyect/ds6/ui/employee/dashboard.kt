@@ -47,7 +47,6 @@ fun EmployeeDashboard() {
             // Header de bienvenida
             HeaderDashboard(
                 userName = "Ana Gómez",
-                userRole = "Desarrollador Frontend"
             )
             
             Spacer(modifier = Modifier.height(16.dp))

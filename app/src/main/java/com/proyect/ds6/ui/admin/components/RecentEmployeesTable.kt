@@ -19,7 +19,6 @@ import com.proyect.ds6.ui.theme.DS6Theme
 data class EmployeeData(
     val id: String,
     val fullName: String,
-    val position: String,
     val dateAdded: String
 )
 
@@ -74,13 +73,6 @@ fun RecentEmployeesTable(employees: List<EmployeeData>) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = "Cargo",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
                     text = "Fecha",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
@@ -129,34 +121,11 @@ fun EmployeeRow(employee: EmployeeData) {
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = employee.position,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
             text = employee.dateAdded,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.weight(1f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun RecentEmployeesTablePreview() {
-    val mockEmployees = listOf(
-        EmployeeData("V-12345678", "Carlos Rodriguez", "Gerente", "01/05/2025"),
-        EmployeeData("V-23456789", "María González", "Analista", "30/04/2025"),
-        EmployeeData("V-34567890", "Pedro Pérez", "Desarrollador", "29/04/2025"),
-        EmployeeData("V-45678901", "Ana López", "Diseñadora", "28/04/2025"),
-        EmployeeData("V-56789012", "Luis Torres", "Contador", "27/04/2025")
-    )
-    
-    DS6Theme {
-        RecentEmployeesTable(employees = mockEmployees)
     }
 }

@@ -123,8 +123,9 @@ fun AddEmployee(
                 feedbackTitle = "Éxito"
                 feedbackMessage = "Empleado guardado correctamente."
                 showFeedbackDialog = true
-                // Optionally navigate back immediately: onBackClick()
                 viewModel.resetSaveState() // Reset state after handling
+                // Redirigir inmediatamente al listado de empleados
+                onBackClick()
             }
             is SaveState.Error -> {
                 feedbackTitle = "Error al Guardar"
@@ -295,18 +296,17 @@ fun AddEmployee(
 
                             // Map Gender String to Int?
                             val generoInt = when (genero) {
-                                "Masculino" -> 1
-                                "Femenino" -> 2
-                                "Otro" -> 3 // Assuming 3 for Other, adjust as per your DB/logic
+                                "Masculino" -> 0
+                                "Femenino" -> 1
                                 else -> null // Handle empty or unknown string
                             }
 
                             // Map Estado Civil String to Int?
                             val estadoCivilInt = when (estadoCivil) {
-                                "Soltero/a" -> 1
-                                "Casado/a" -> 2
-                                "Divorciado/a" -> 3
-                                "Viudo/a" -> 4
+                                "Soltero/a" -> 0
+                                "Casado/a" -> 1
+                                "Divorciado/a" -> 2
+                                "Viudo/a" -> 3
                                 else -> null // Handle empty or unknown string
                             }
 
@@ -348,7 +348,7 @@ fun AddEmployee(
                                 contrasena = password.ifEmpty { null }, // String? **SECURITY WARNING**
                                 provincia = selectedProvincia?.codigo_provincia, // Use code from selected object
                                 distrito = selectedDistrito?.codigo_distrito, // Use code from selected object
-                                corregimiento = selectedCorregimiento?.codigo, // Use the 'codigo' field from Corregimiento
+                                corregimiento = selectedCorregimiento?.codigo_corregimiento, // Use the 'codigo' field from Corregimiento
                                 calle = calle.ifEmpty { null }, // String?
                                 casa = casa.ifEmpty { null }, // String?
                                 comunidad = comunidad.ifEmpty { null }, // String?
@@ -413,10 +413,6 @@ fun AddEmployee(
             AlertDialog(
                 onDismissRequest = {
                     showFeedbackDialog = false
-                    // Navigate back ONLY if save was successful and dialog is dismissed
-                    if (saveState is SaveState.Success) {
-                        onBackClick()
-                    }
                 },
                 title = { Text(feedbackTitle) },
                 text = { Text(feedbackMessage) },
@@ -424,10 +420,6 @@ fun AddEmployee(
                     TextButton(
                         onClick = {
                             showFeedbackDialog = false
-                            // Navigate back ONLY if save was successful and dialog is dismissed
-                            if (saveState is SaveState.Success) {
-                                onBackClick()
-                            }
                         }
                     ) {
                         Text("OK")
@@ -438,8 +430,3 @@ fun AddEmployee(
     }
 }
 
-// NOTE: The implementations of PersonalInfoComponent, AddressInfoComponent,
-// ContactInfoComponent, and WorkInfoComponent are assumed to be correct
-// based on previous corrections, accepting lists and callbacks for dropdowns
-// and handling their own internal state/UI.
-// The DropdownSelector helper composable is also assumed to be available.

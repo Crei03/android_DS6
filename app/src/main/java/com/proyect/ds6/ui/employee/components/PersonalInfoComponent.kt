@@ -18,6 +18,9 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.ui.Alignment // Import Alignment for the DatePicker dialog buttons
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.vectorResource
+import com.proyect.ds6.R
 
 // Import the data class for Nacionalidad
 import com.proyect.ds6.model.Nacionalidad
@@ -144,7 +147,10 @@ fun PersonalInfoComponent(
                 readOnly = true, // Evita que se escriba directamente
                 trailingIcon = {
                     IconButton(onClick = { showDatePicker = true }) {
-                        Icon(Icons.Default.CalendarToday, contentDescription = "Seleccionar fecha")
+                        Icon(
+                            imageVector = ImageVector.vectorResource(id = R.drawable.calendar_month_24px),
+                            contentDescription = "Seleccionar fecha"
+                        )
                     }
                 }
             )
@@ -240,6 +246,40 @@ fun PersonalInfoComponent(
                     }
                 }
             }
+                        // Campo "Usa apellido de casa" - Solo visible para mujeres casadas o viudas
+            if (genero == "Femenino" && (estadoCivil == "Casado/a" || estadoCivil == "Viudo/a")) {
+                var expandedUsaAc by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expandedUsaAc,
+                    onExpandedChange = { expandedUsaAc = it },
+                    modifier = Modifier.fillMaxWidth()                ) {                    
+                    OutlinedTextField(
+                        value = if (usaAc == 1) "Sí" else "No",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Usa apellido de casa") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedUsaAc) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expandedUsaAc,
+                        onDismissRequest = { expandedUsaAc = false }
+                    ) {
+                        listOf(1 to "Sí", 0 to "No").forEach { (value, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    onUsaAcChange(value)
+                                    expandedUsaAc = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
 
 // Tipo de Sangre
             var expandedTipoSangre by remember { mutableStateOf(false) }
@@ -312,41 +352,6 @@ fun PersonalInfoComponent(
                                 expandedNacionalidad = false
                             }
                         )
-                    }
-                }
-            }
-
-            // Campo "Usa apellido de casa" - Solo visible para mujeres casadas o viudas
-            if (genero == "Femenino" && (estadoCivil == "Casado/a" || estadoCivil == "Viudo/a")) {
-                var expandedUsaAc by remember { mutableStateOf(false) }
-                ExposedDropdownMenuBox(
-                    expanded = expandedUsaAc,
-                    onExpandedChange = { expandedUsaAc = it },
-                    modifier = Modifier.fillMaxWidth()                ) {                    
-                    OutlinedTextField(
-                        value = if (usaAc == 1) "Sí" else "No",
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Usa apellido de casa") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedUsaAc) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = expandedUsaAc,
-                        onDismissRequest = { expandedUsaAc = false }
-                    ) {
-                        listOf(1 to "Sí", 0 to "No").forEach { (value, label) ->
-                            DropdownMenuItem(
-                                text = { Text(label) },
-                                onClick = {
-                                    onUsaAcChange(value)
-                                    expandedUsaAc = false
-                                }
-                            )
-                        }
                     }
                 }
             }

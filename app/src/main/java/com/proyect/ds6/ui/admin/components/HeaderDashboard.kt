@@ -25,7 +25,6 @@ import com.proyect.ds6.ui.theme.DS6Theme
 @Composable
 fun HeaderDashboard(
     userName: String,
-    userRole: String
 ) {
     Surface(
         modifier = Modifier
@@ -67,13 +66,6 @@ fun HeaderDashboard(
                     fontWeight = FontWeight.Bold
                 )
                 
-                Spacer(modifier = Modifier.height(4.dp))
-                
-                Text(
-                    text = userRole,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
@@ -85,7 +77,6 @@ fun HeaderDashboardPreview() {
     DS6Theme {
         HeaderDashboard(
             userName = "Carlos Rodríguez",
-            userRole = "Administrador"
         )
     }
 }
