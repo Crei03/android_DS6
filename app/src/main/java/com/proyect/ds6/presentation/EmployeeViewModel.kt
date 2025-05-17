@@ -107,7 +107,7 @@ class AddEmployeeViewModel(private val repository: EmployeeRepository) : ViewMod
             // Cargar Nacionalidades
             val nationalitiesResult = repository.getNacionalidades()
             if (nationalitiesResult.isSuccess) {
-                _nationalities.value = nationalitiesResult.getOrThrow()
+                _nationalities.value = nationalitiesResult.getOrThrow().sortedBy { it.pais }
             } else {
                 _optionsError.value = nationalitiesResult.exceptionOrNull()?.message ?: "Error al cargar nacionalidades"
             }
@@ -115,7 +115,7 @@ class AddEmployeeViewModel(private val repository: EmployeeRepository) : ViewMod
             // Cargar Provincias
             val provincesResult = repository.getProvincias()
             if (provincesResult.isSuccess) {
-                _provinces.value = provincesResult.getOrThrow()
+                _provinces.value = provincesResult.getOrThrow().sortedBy { it.nombre_provincia }
             } else {
                 _optionsError.value = provincesResult.exceptionOrNull()?.message ?: "Error al cargar provincias"
             }
@@ -123,7 +123,7 @@ class AddEmployeeViewModel(private val repository: EmployeeRepository) : ViewMod
             // Cargar Distritos (lista completa)
             val distritosResult = repository.getDistritos()
             if (distritosResult.isSuccess) {
-                _allDistritos.value = distritosResult.getOrThrow()
+                _allDistritos.value = distritosResult.getOrThrow().sortedBy { it.nombre_distrito }
             } else {
                 _optionsError.value = distritosResult.exceptionOrNull()?.message ?: "Error al cargar distritos"
             }
@@ -131,7 +131,7 @@ class AddEmployeeViewModel(private val repository: EmployeeRepository) : ViewMod
             // Cargar Corregimientos (lista completa)
             val corregimientosResult = repository.getCorregimientos()
             if (corregimientosResult.isSuccess) {
-                _allCorregimientos.value = corregimientosResult.getOrThrow()
+                _allCorregimientos.value = corregimientosResult.getOrThrow().sortedBy { it.nombre_corregimiento }
             } else {
                 _optionsError.value = corregimientosResult.exceptionOrNull()?.message ?: "Error al cargar corregimientos"
             }
@@ -139,7 +139,7 @@ class AddEmployeeViewModel(private val repository: EmployeeRepository) : ViewMod
             // Cargar Cargos
             val cargosResult = repository.getCargos()
             if (cargosResult.isSuccess) {
-                _cargos.value = cargosResult.getOrThrow()
+                _cargos.value = cargosResult.getOrThrow().sortedBy { it.nombre }
             } else {
                 _optionsError.value = cargosResult.exceptionOrNull()?.message ?: "Error al cargar cargos"
             }
@@ -147,7 +147,7 @@ class AddEmployeeViewModel(private val repository: EmployeeRepository) : ViewMod
             // Cargar Departamentos
             val departamentosResult = repository.getDepartamentos()
             if (departamentosResult.isSuccess) {
-                _departamentos.value = departamentosResult.getOrThrow()
+                _departamentos.value = departamentosResult.getOrThrow().sortedBy { it.nombre }
             } else {
                 _optionsError.value = departamentosResult.exceptionOrNull()?.message ?: "Error al cargar departamentos"
             }

@@ -3,6 +3,7 @@ package com.proyect.ds6.data.repository
 import com.proyect.ds6.model.* // Import all your data classes
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
@@ -165,9 +166,32 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
     }
 
     /**
+     * Updates an existing employee in the 'empleados' table in Supabase.
+     * The employee is identified by their 'cedula'.
+     * @param employee The Employee object with updated data.
+     * @return Result<Unit> indicating success or failure.
+     */
+    suspend fun updateEmployee(employee: Employee): Result<Unit> {
+        return try {
+            // Access the 'empleados' table and perform the update operation.
+            // The 'eq("cedula", employee.cedula)' clause specifies which row to update.
+            supabaseClient.postgrest["empleados"].update(employee) {
+                filter {
+                    eq("cedula", employee.cedula)
+                }
+            }
+            Result.success(Unit) // Indicate that the operation was successful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+
+    /**
      * Obtiene todos los empleados de la tabla 'empleados'.
      * @return Result<List<Employee>> con la lista de empleados en caso de éxito o un error en caso de fallo.
-     */    
+     */
     suspend fun getAllEmployees(): Result<List<Employee>> {
         return try {
             val employees = supabaseClient.postgrest["empleados"].select().decodeList<Employee>()
@@ -177,6 +201,28 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
             Result.failure(e)
         }
     }
+
+    /**
+     * Obtiene un empleado específico por su cédula.
+     * @param cedula La cédula del empleado a buscar.
+     * @return Result<Employee?> con el empleado encontrado o null si no se encuentra.
+     */
+    suspend fun getEmployee(cedula: String): Result<Employee?> {
+        return try {
+            // Select a single employee where the 'cedula' matches the provided cedula.
+            // using singleOrNull() to get a single result or null if not found.
+            val employee = supabaseClient.postgrest["empleados"].select {
+                filter {
+                    eq("cedula", cedula)
+                }
+            }.decodeSingleOrNull<Employee>()
+            Result.success(employee)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
 
     /**
      * Elimina un empleado usando el procedimiento almacenado 'eliminar_empleado'.
@@ -199,12 +245,12 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
             e.printStackTrace()
             Result.failure(e)
         }
-    }    
+    }
 
     /**
-     * Obtiene un empleado específico por su cédula.
-     * @param cedula La cédula del empleado a buscar.
-     * @return Result<Employee?> con el empleado encontrado o null si no se encuentra.
+     * Reintegra un empleado usando el procedimiento almacenado 'reintegrar_empleado'.
+     * @param cedula La cédula del empleado que se va a reintegrar.
+     * @return Result<Unit> indicando éxito o fracaso.
      */
     suspend fun reinstateEmployee(cedula: String): Result<Unit>  {
         return try {
@@ -219,11 +265,11 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
             Result.failure(e)
         }
     }
-        
+
     /**
      * Obtiene todos los empleados eliminados de la tabla 'e_eliminados'.
      * @return Result<List<Employee>> con la lista de empleados eliminados en caso de éxito o un error en caso de fallo.
-     */    
+     */
     suspend fun getDeletedEmployees(): Result<List<Employee>> {
         return try {
             val employees = supabaseClient.postgrest["e_eliminados"].select().decodeList<Employee>()
@@ -265,7 +311,7 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
                     if (estadoFilter != null) {
                         eq("estado", estadoFilter.toString())
                     }
-                    
+
                     // Búsqueda en múltiples campos
                     if (!searchTerm.isNullOrBlank()) {
                         or {
@@ -278,7 +324,7 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
                     }
                 }
             }
-            
+
             val employees = query.decodeList<Employee>()
             Result.success(employees)
         } catch (e: Exception) {
@@ -286,4 +332,5 @@ class EmployeeRepository(private val supabaseClient: SupabaseClient) {
             Result.failure(e)
         }
     }
+
 }

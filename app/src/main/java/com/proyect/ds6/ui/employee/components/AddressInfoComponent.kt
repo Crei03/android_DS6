@@ -2,9 +2,11 @@ package com.proyect.ds6.ui.employee.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.proyect.ds6.model.Corregimiento
 import com.proyect.ds6.model.Distrito
@@ -17,6 +19,9 @@ fun AddressInfoComponent(
     provinces: List<Provincia>,
     selectedProvincia: Provincia?,
     onProvinciaSelected: (Provincia?) -> Unit,
+    provinciaError: String? = null,
+    distritoError: String? = null,
+    corregimientoError: String? = null,
 
     distritos: List<Distrito>,
     selectedDistrito: Distrito?,
@@ -28,10 +33,15 @@ fun AddressInfoComponent(
 
     calle: String,
     onCalleChange: (String) -> Unit,
+    calleError: String? = null, // Added error parameter for calle
+
     casa: String,
     onCasaChange: (String) -> Unit,
+    casaError: String? = null, // Added error parameter for casa
+
     comunidad: String,
-    onComunidadChange: (String) -> Unit
+    onComunidadChange: (String) -> Unit,
+    comunidadError: String? = null // Added error parameter for comunidad
 ) {
     Card(
         modifier = Modifier
@@ -49,7 +59,7 @@ fun AddressInfoComponent(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Provincia
+            // Provincia Dropdown
             var expandedProvincia by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = expandedProvincia,
@@ -63,7 +73,7 @@ fun AddressInfoComponent(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedProvincia) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .menuAnchor()
+                        .menuAnchor() // Ensure menuAnchor is applied
                 )
 
                 ExposedDropdownMenu(
@@ -73,16 +83,17 @@ fun AddressInfoComponent(
                     provinces.forEach { prov ->
                         DropdownMenuItem(
                             text = { Text(prov.nombre_provincia) },
-                            onClick = { 
+                            onClick = {
                                 onProvinciaSelected(prov)
                                 expandedProvincia = false
+                                // TODO: Add error handling for dropdowns if they are required fields
                             }
                         )
                     }
                 }
             }
 
-            // Distrito
+            // Distrito Dropdown
             var expandedDistrito by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = expandedDistrito,
@@ -94,7 +105,7 @@ fun AddressInfoComponent(
                     readOnly = true,
                     label = { Text("Distrito") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDistrito) },
-                    enabled = selectedProvincia != null,
+                    enabled = selectedProvincia != null, // Enable only if a province is selected
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor()
@@ -104,19 +115,21 @@ fun AddressInfoComponent(
                     expanded = expandedDistrito,
                     onDismissRequest = { expandedDistrito = false },
                 ) {
-                    distritos.forEach { dist ->
+                    // Filter distritos based on the selected province
+                    distritos.filter { it.codigo_provincia == selectedProvincia?.codigo_provincia }.forEach { dist ->
                         DropdownMenuItem(
                             text = { Text(dist.nombre_distrito) },
-                            onClick = { 
+                            onClick = {
                                 onDistritoSelected(dist)
                                 expandedDistrito = false
+                                // TODO: Add error handling for dropdowns if they are required fields
                             }
                         )
                     }
                 }
             }
 
-            // Corregimiento
+            // Corregimiento Dropdown
             var expandedCorregimiento by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
                 expanded = expandedCorregimiento,
@@ -128,7 +141,7 @@ fun AddressInfoComponent(
                     readOnly = true,
                     label = { Text("Corregimiento") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCorregimiento) },
-                    enabled = selectedDistrito != null,
+                    enabled = selectedDistrito != null, // Enable only if a district is selected
                     modifier = Modifier
                         .fillMaxWidth()
                         .menuAnchor()
@@ -138,24 +151,37 @@ fun AddressInfoComponent(
                     expanded = expandedCorregimiento,
                     onDismissRequest = { expandedCorregimiento = false },
                 ) {
-                    corregimientos.forEach { corr ->
+                    // Filter corregimientos based on the selected province and district
+                    corregimientos.filter { it.codigo_provincia == selectedProvincia?.codigo_provincia && it.codigo_distrito == selectedDistrito?.codigo_distrito }.forEach { corr ->
                         DropdownMenuItem(
                             text = { Text(corr.nombre_corregimiento) },
-                            onClick = { 
+                            onClick = {
                                 onCorregimientoSelected(corr)
                                 expandedCorregimiento = false
+                                // TODO: Add error handling for dropdowns if they are required fields
                             }
                         )
                     }
                 }
             }
 
-            // Calle
+            // Calle TextField
             OutlinedTextField(
                 value = calle,
-                onValueChange = onCalleChange,
+                onValueChange = { newValue ->
+                    // Allow letters, numbers, spaces, and common address symbols (e.g., #, -, .) and limit length to 30
+                    val filteredValue = newValue.filter { it.isLetterOrDigit() || it.isWhitespace() || it == '#' || it == '-' || it == '.' }.take(30)
+                    onCalleChange(filteredValue)
+                },
                 label = { Text("Calle") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text), // Suggest text keyboard
+                isError = calleError != null, // Set isError based on the error state
+                supportingText = { // Display error message if not null
+                    if (calleError != null) {
+                        Text(calleError)
+                    }
+                }
             )
 
             // Fila para Casa y Comunidad
@@ -163,17 +189,41 @@ fun AddressInfoComponent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Casa TextField
                 OutlinedTextField(
                     value = casa,
-                    onValueChange = onCasaChange,
+                    onValueChange = { newValue ->
+                        // Allow letters, numbers, and hyphens for house number/name and limit length to 10
+                        val filteredValue = newValue.filter { it.isLetterOrDigit() || it == '-' }.take(10)
+                        onCasaChange(filteredValue)
+                    },
                     label = { Text("Casa") },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text), // Suggest text/number keyboard
+                    isError = casaError != null, // Set isError based on the error state
+                    supportingText = { // Display error message if not null
+                        if (casaError != null) {
+                            Text(casaError)
+                        }
+                    }
                 )
+                // Comunidad TextField
                 OutlinedTextField(
                     value = comunidad,
-                    onValueChange = onComunidadChange,
+                    onValueChange = { newValue ->
+                        // Allow letters, numbers, and spaces for community name and limit length to 25
+                        val filteredValue = newValue.filter { it.isLetterOrDigit() || it.isWhitespace() }.take(25)
+                        onComunidadChange(filteredValue)
+                    },
                     label = { Text("Comunidad") },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text), // Suggest text keyboard
+                    isError = comunidadError != null, // Set isError based on the error state
+                    supportingText = { // Display error message if not null
+                        if (comunidadError != null) {
+                            Text(comunidadError)
+                        }
+                    }
                 )
             }
         }
