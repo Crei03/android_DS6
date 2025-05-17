@@ -39,8 +39,7 @@ fun PersonalInfoComponent(
     segundoNombre: String,
     onSegundoNombreChange: (String) -> Unit,
     primerApellido: String,
-    onPrimerApellidoChange: (String) -> Unit,
-    segundoApellido: String,
+    onPrimerApellidoChange: (String) -> Unit,    segundoApellido: String,
     onSegundoApellidoChange: (String) -> Unit,
     fechaNacimiento: Long,
     onFechaNacimientoChange: (Long) -> Unit,
@@ -50,6 +49,8 @@ fun PersonalInfoComponent(
     onEstadoCivilChange: (String) -> Unit, // Still using String for now
     tipoSangre: String, // Still using String for now
     onTipoSangreChange: (String) -> Unit, // Still using String for now
+    usaAc: Int = 0, // Parámetro para "Usa apellido de casa" (0=No, 1=Sí)
+    onUsaAcChange: (Int) -> Unit = {}, // Callback para cambios en "Usa apellido de casa"
     // --- Parámetros para la Nacionalidad desde el ViewModel ---
     nationalities: List<Nacionalidad>, // Lista de nacionalidades obtenida del ViewModel
     selectedNacionalidad: Nacionalidad?, // Nacionalidad actualmente seleccionada (objeto)
@@ -245,8 +246,8 @@ fun PersonalInfoComponent(
             ExposedDropdownMenuBox(
                 expanded = expandedTipoSangre,
                 onExpandedChange = { expandedTipoSangre = it },
-                modifier = Modifier.fillMaxWidth()
-            ) {                OutlinedTextField(
+                modifier = Modifier.fillMaxWidth()            ) {                
+                OutlinedTextField(
                     value = tipoSangre,
                     onValueChange = {},
                     readOnly = true,
@@ -311,6 +312,41 @@ fun PersonalInfoComponent(
                                 expandedNacionalidad = false
                             }
                         )
+                    }
+                }
+            }
+
+            // Campo "Usa apellido de casa" - Solo visible para mujeres casadas o viudas
+            if (genero == "Femenino" && (estadoCivil == "Casado/a" || estadoCivil == "Viudo/a")) {
+                var expandedUsaAc by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expandedUsaAc,
+                    onExpandedChange = { expandedUsaAc = it },
+                    modifier = Modifier.fillMaxWidth()                ) {                    
+                    OutlinedTextField(
+                        value = if (usaAc == 1) "Sí" else "No",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Usa apellido de casa") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedUsaAc) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor()
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = expandedUsaAc,
+                        onDismissRequest = { expandedUsaAc = false }
+                    ) {
+                        listOf(1 to "Sí", 0 to "No").forEach { (value, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    onUsaAcChange(value)
+                                    expandedUsaAc = false
+                                }
+                            )
+                        }
                     }
                 }
             }

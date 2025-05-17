@@ -55,6 +55,7 @@ fun AddEmployee(
     var genero by remember { mutableStateOf("") } // UI uses String from PersonalInfoComponent
     var estadoCivil by remember { mutableStateOf("") } // UI uses String from PersonalInfoComponent
     var tipoSangre by remember { mutableStateOf("") } // UI uses String from PersonalInfoComponent
+    var usaAc by remember { mutableStateOf(0) } // UI usa Int: 0=No, 1=Sí
 
     // States for Address Info - will hold the SELECTED OBJECTS or their identifiers
     var selectedProvincia by remember { mutableStateOf<Provincia?>(null) }
@@ -202,13 +203,13 @@ fun AddEmployee(
                     1 -> PersonalInfoComponent(
                         cedula = cedula, onCedulaChange = { cedula = it },
                         primerNombre = primerNombre, onPrimerNombreChange = { primerNombre = it },
-                        segundoNombre = segundoNombre, onSegundoNombreChange = { segundoNombre = it },
-                        primerApellido = primerApellido, onPrimerApellidoChange = { primerApellido = it },
+                        segundoNombre = segundoNombre, onSegundoNombreChange = { segundoNombre = it },                        primerApellido = primerApellido, onPrimerApellidoChange = { primerApellido = it },
                         segundoApellido = segundoApellido, onSegundoApellidoChange = { segundoApellido = it },
                         fechaNacimiento = fechaNacimiento, onFechaNacimientoChange = { fechaNacimiento = it }, // UI Long
                         genero = genero, onGeneroChange = { genero = it }, // UI String
                         estadoCivil = estadoCivil, onEstadoCivilChange = { estadoCivil = it }, // UI String
                         tipoSangre = tipoSangre, onTipoSangreChange = { tipoSangre = it }, // UI String
+                        usaAc = usaAc, onUsaAcChange = { usaAc = it }, // 0=No, 1=Sí
                         // Pass the list of nationalities and handle selection
                         nationalities = nationalities, // Pass the list
                         selectedNacionalidad = selectedNacionalidad, // Pass current selection
@@ -313,18 +314,17 @@ fun AddEmployee(
                             val cedulaParts = cedula.split("-")
                             val prefijoValue = cedulaParts.getOrNull(0).let { if (it.isNullOrEmpty()) null else it }
                             val tomoValue = cedulaParts.getOrNull(1).let { if (it.isNullOrEmpty()) null else it }
-                            val asientoValue = cedulaParts.getOrNull(2).let { if (it.isNullOrEmpty()) null else it }
-                            // Note: This assumes the format is always "prefijo-tomo-asiento".
+                            val asientoValue = cedulaParts.getOrNull(2).let { if (it.isNullOrEmpty()) null else it }                            // Note: This assumes the format is always "prefijo-tomo-asiento".
                             // You might need more robust parsing if the format varies.
 
                             // --- Handle usa_ac ---
-                            // This field is not collected in the current UI components.
-                            // It will be sent as null unless you add a UI field for it.
-                            val usaAcInt: Int? = null // Assuming no UI field for this
-                            // If you add a UI field, collect its value here:
-                            // var usaAcState by remember { mutableStateOf<Boolean?>(null) } // Example UI state
-                            // val usaAcInt = if (usaAcState == true) 1 else if (usaAcState == false) 0 else null
-
+                            // Usamos directamente el valor de usaAc que ya tenemos como Int (0=No, 1=Sí)
+                            // Solo es relevante para mujeres casadas o viudas.
+                            val usaAcInt: Int? = if (genero == "Femenino" && (estadoCivil == "Casado/a" || estadoCivil == "Viudo/a")) {
+                                usaAc // Ya es un Int (0 o 1)
+                            } else {
+                                null // Valor nulo si no es relevante
+                            }
 
                             // Create the Employee object using the corrected property names and converted/cleaned types
                             val newEmployee = Employee(
