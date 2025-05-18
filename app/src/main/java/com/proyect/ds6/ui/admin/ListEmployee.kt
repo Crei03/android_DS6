@@ -636,7 +636,7 @@ fun ListEmployeeScreen(
                                     CoroutineScope(Dispatchers.IO).launch {
                                         try {
                                             val result = employeeRepository.updateEmployeeStatus(employee.id, nuevoEstado)
-                                              if (result.isSuccess) {
+                                            if (result.isSuccess) {
                                                 // Recargar los datos para asegurar que reflejen el estado actual
                                                 withContext(Dispatchers.Main) {
                                                     // Recargar con los filtros actuales para mantener la coherencia

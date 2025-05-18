@@ -4,11 +4,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable // Import clickable modifier
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.CalendarToday // Changed from Info to CalendarToday for date icon
 import androidx.compose.material3.*
 import androidx.compose.runtime.* // Import necessary Compose state APIs
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat // Import SimpleDateFormat
 import java.util.*
 // Import necessary Material 3 DatePicker components
 import androidx.compose.material3.DatePicker
@@ -24,13 +25,12 @@ import com.proyect.ds6.R
 // Import the data classes for Cargo and Departamento
 import com.proyect.ds6.model.Cargo
 import com.proyect.ds6.model.Departamento
-// Ya no necesitamos importar el DropdownSelector
-// import com.proyect.ds6.ui.components.DropdownSelector
 
 
 /**
  * Componente que muestra los campos para la información de trabajo del empleado,
  * incluyendo la selección de Departamento y Cargo desde listas proporcionadas.
+ * Ahora incluye parámetros para mostrar mensajes de error de validación para Departamento y Cargo.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,10 +39,12 @@ fun WorkInfoComponent(
     departamentos: List<Departamento>, // Lista de departamentos obtenida del ViewModel
     selectedDepartamento: Departamento?, // Departamento actualmente seleccionado (objeto)
     onDepartamentoSelected: (Departamento?) -> Unit, // Callback cuando se selecciona un departamento
+    departamentoError: String? = null, // Added error parameter for departamento
 
     cargos: List<Cargo>, // Lista de cargos (obtenida del ViewModel)
     selectedCargo: Cargo?, // Cargo actualmente seleccionado (objeto)
     onCargoSelected: (Cargo?) -> Unit, // Callback cuando se selecciona un cargo
+    cargoError: String? = null, // Added error parameter for cargo
     // --- Fin de parámetros actualizados ---
 
     fechaContratacion: Long,
@@ -50,16 +52,14 @@ fun WorkInfoComponent(
     estado: Int, // Still using Int for now (consider dropdown for status if needed)
     onEstadoChange: (Int) -> Unit
 ) {
-    // Remove static lists as they will be passed as parameters
-    // val departamentos = listOf(...)
-    // val cargosPorDepartamento = mapOf(...)
-
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = fechaContratacion
-    )    // Estados para controlar los dropdowns
+    )
+
+    // Estados para controlar los dropdowns
     var expandedDepartamento by remember { mutableStateOf(false) }
-    var expandedCargo by remember { mutableStateOf(false) }
+    var expandedCargo by remember { mutableStateOf(false) } // Corrected state type
     var expandedEstado by remember { mutableStateOf(false) } // Estado para el dropdown Estado
 
 
@@ -78,7 +78,8 @@ fun WorkInfoComponent(
                 .padding(16.dp)
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(16.dp) // Use spacedBy for consistent spacing
-        ) {            // Departamento Dropdown
+        ) {
+            // Departamento Dropdown
             ExposedDropdownMenuBox(
                 expanded = expandedDepartamento,
                 onExpandedChange = { expandedDepartamento = it },
@@ -92,7 +93,8 @@ fun WorkInfoComponent(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDepartamento) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .menuAnchor()
+                        .menuAnchor(),
+                    isError = departamentoError != null // Indicate error visually
                 )
 
                 ExposedDropdownMenu(
@@ -120,6 +122,16 @@ fun WorkInfoComponent(
                     }
                 }
             }
+            // Display error message for Departamento if not null
+            if (departamentoError != null) {
+                Text(
+                    text = departamentoError,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                )
+            }
+
 
             // Cargo Dropdown
             ExposedDropdownMenuBox(
@@ -135,13 +147,16 @@ fun WorkInfoComponent(
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCargo) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .menuAnchor()
+                        .menuAnchor(),
+                    isError = cargoError != null // Indicate error visually
                 )
 
                 ExposedDropdownMenu(
                     expanded = expandedCargo,
                     onDismissRequest = { expandedCargo = false }
                 ) {
+                    // It's assumed that the 'cargos' list passed to this component
+                    // is already filtered by the selected department in the parent Composable.
                     cargos.forEach { cargo ->
                         DropdownMenuItem(
                             text = { Text(cargo.nombre ?: "Sin Nombre") },
@@ -163,6 +178,16 @@ fun WorkInfoComponent(
                     }
                 }
             }
+            // Display error message for Cargo if not null
+            if (cargoError != null) {
+                Text(
+                    text = cargoError,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                )
+            }
+
 
             // Estado Dropdown
             ExposedDropdownMenuBox(
@@ -206,14 +231,15 @@ fun WorkInfoComponent(
                 value = if (fechaContratacion > 0) {
                     val calendar = Calendar.getInstance()
                     calendar.timeInMillis = fechaContratacion
-                    "${calendar.get(Calendar.DAY_OF_MONTH)}/${calendar.get(Calendar.MONTH) + 1}/${calendar.get(Calendar.YEAR)}"
+                    // Format date as dd/MM/yyyy for display
+                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(calendar.time)
                 } else "",
-                onValueChange = {},
+                onValueChange = {}, // Read-only field
                 label = { Text("Fecha de Contratación") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { showDatePicker = true },
-                readOnly = true,
+                    .clickable { showDatePicker = true }, // Open DatePicker on click
+                readOnly = true, // Prevent direct typing
                 trailingIcon = {
                     IconButton(onClick = { showDatePicker = true }) {
                         Icon(
@@ -222,32 +248,38 @@ fun WorkInfoComponent(
                         )
                     }
                 }
+                // Note: DatePicker itself doesn't typically have a direct error state in the UI field
+                // unless you add manual validation for the selected date value.
             )
+        }
+    }
 
-            if (showDatePicker) {
-                DatePickerDialog(
-                    onDismissRequest = { showDatePicker = false },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                datePickerState.selectedDateMillis?.let {
-                                    onFechaContratacionChange(it)
-                                }
-                                showDatePicker = false
-                            }
-                        ) {
-                            Text("Confirmar")
+    // Date Picker Dialog
+    // This dialog is rendered outside the Card so it floats correctly
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Get the selected date from the state
+                        datePickerState.selectedDateMillis?.let {
+                            onFechaContratacionChange(it) // Pass the selected timestamp back
                         }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showDatePicker = false }) {
-                            Text("Cancelar")
-                        }
+                        showDatePicker = false // Hide the dialog
                     }
                 ) {
-                    DatePicker(state = datePickerState)
+                    Text("Confirmar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancelar")
                 }
             }
+        ) {
+            // The DatePicker content itself
+            DatePicker(state = datePickerState)
         }
     }
 }
