@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -170,6 +171,11 @@ fun LoginScreen() {
     // Estado para mensajes de error
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
+    // Estado para la validación de cédula
+    var cedulaValidation by remember { 
+        mutableStateOf(CedulaValidator.validateCedula("")) 
+    }
+    
     // Efecto para mostrar errores en SnackBar
     LaunchedEffect(errorMessage) {
         errorMessage?.let {
@@ -182,10 +188,8 @@ fun LoginScreen() {
     val gradientColors = listOf(
         DS6PrimaryDark.copy(alpha = 0.9f),  // Color oscuro arriba
         DS6Primary.copy(alpha = 0.6f)        // Color más claro abajo
-    )
-
-    // Validación para habilitar/deshabilitar el botón de login
-    isLoginEnabled = cedula.length >= 1 && password.length >= 1
+    )    // Validación para habilitar/deshabilitar el botón de login
+    isLoginEnabled = cedulaValidation.isValid && cedula.isNotEmpty() && password.length >= 1
 
     Box(
         modifier = Modifier
@@ -231,13 +235,14 @@ fun LoginScreen() {
                 OutlinedTextField(
                     value = cedula,
                     onValueChange = { newValue ->
-                        // Validar: solo números y hasta 3 guiones, no guiones consecutivos ni al principio
-                        val isValid = newValue.all { it.isDigit() || it == '-' } && 
-                                newValue.count { it == '-' } <= 2 && 
-                                !newValue.contains("--") && 
-                                !(newValue.isNotEmpty() && newValue[0] == '-') 
+                        // Validar con la función de validación de cédula
+                        val validationResult = CedulaValidator.validateCedula(newValue)
                         
-                        if (isValid) {
+                        // Actualizar el estado de validación
+                        cedulaValidation = validationResult
+                        
+                        // Si la cédula es válida, actualizar el valor
+                        if (validationResult.isValid) {
                             cedula = newValue
                         }
                     },
