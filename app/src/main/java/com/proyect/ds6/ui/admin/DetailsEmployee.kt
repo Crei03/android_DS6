@@ -45,14 +45,14 @@ fun DetailsEmployeeScreen(
     // Estados para las listas de opciones (se cargan una vez)
     var nacionalidades by remember { mutableStateOf<List<Nacionalidad>>(emptyList()) }
     var provincias by remember { mutableStateOf<List<Provincia>>(emptyList()) }
-    var distritos by remember { mutableStateOf<List<Distrito>>(emptyList()) } // Lista completa de distritos
-    var corregimientos by remember { mutableStateOf<List<Corregimiento>>(emptyList()) } // Lista completa de corregimientos
+    // Guardamos las listas completas para poder filtrar reactivamente
+    var allDistritos by remember { mutableStateOf<List<Distrito>>(emptyList()) }
+    var allCorregimientos by remember { mutableStateOf<List<Corregimiento>>(emptyList()) }
     var departamentos by remember { mutableStateOf<List<Departamento>>(emptyList()) }
-    var cargos by remember { mutableStateOf<List<Cargo>>(emptyList()) }
+    var allCargos by remember { mutableStateOf<List<Cargo>>(emptyList()) } // Guardamos la lista completa de cargos
+
 
     // Estados para los valores del formulario (editables)
-    // La cédula no es editable en esta pantalla, pero mantenemos el estado para pasarla al componente
-    var currentCedula by remember { mutableStateOf(cedula) } // Use the passed cedula
     var primerNombre by remember { mutableStateOf("") }
     var segundoNombre by remember { mutableStateOf("") }
     var primerApellido by remember { mutableStateOf("") }
@@ -83,8 +83,6 @@ fun DetailsEmployeeScreen(
     var estado by remember { mutableStateOf(1) } // UI usa Int (1=Activo, 0=Inactivo, etc.)
 
     // Estados para mensajes de error de validación por campo
-    // La cédula no es editable, no necesita estado de error en esta pantalla
-    // var cedulaError by remember { mutableStateOf<String?>(null) }
     var primerNombreError by remember { mutableStateOf<String?>(null) }
     var segundoNombreError by remember { mutableStateOf<String?>(null) }
     var primerApellidoError by remember { mutableStateOf<String?>(null) }
@@ -97,8 +95,8 @@ fun DetailsEmployeeScreen(
     var calleError by remember { mutableStateOf<String?>(null) }
     var casaError by remember { mutableStateOf<String?>(null) }
     var comunidadError by remember { mutableStateOf<String?>(null) }
-    var departamentoError by remember { mutableStateOf<String?>(null) }
-    var cargoError by remember { mutableStateOf<String?>(null) }
+    var departamentoError by remember { mutableStateOf<String?>(null) } // Added error state for departamento
+    var cargoError by remember { mutableStateOf<String?>(null) } // Added error state for cargo
     var nacionalidadError by remember { mutableStateOf<String?>(null) } // Added error state for Nacionalidad
     var provinciaError by remember { mutableStateOf<String?>(null) } // Added error state for Provincia
     var distritoError by remember { mutableStateOf<String?>(null) } // Added error state for Distrito
@@ -188,20 +186,20 @@ fun DetailsEmployeeScreen(
                 listOf(
                     async { employeeRepository.getNacionalidades() },
                     async { employeeRepository.getProvincias() },
-                    async { employeeRepository.getDistritos() },
-                    async { employeeRepository.getCorregimientos() },
+                    async { employeeRepository.getDistritos() }, // Cargar lista completa
+                    async { employeeRepository.getCorregimientos() }, // Cargar lista completa
                     async { employeeRepository.getDepartamentos() },
-                    async { employeeRepository.getCargos() }
+                    async { employeeRepository.getCargos() } // Cargar lista completa
                 )
             }
 
             // Procesar resultados de opciones con casting seguro y ordenar alfabéticamente
             nacionalidades = (optionsResults[0].await().getOrNull() as? List<Nacionalidad>)?.sortedBy { it.pais } ?: emptyList()
             provincias = (optionsResults[1].await().getOrNull() as? List<Provincia>)?.sortedBy { it.nombre_provincia } ?: emptyList()
-            distritos = (optionsResults[2].await().getOrNull() as? List<Distrito>)?.sortedBy { it.nombre_distrito } ?: emptyList() // Guardar lista completa y ordenar
-            corregimientos = (optionsResults[3].await().getOrNull() as? List<Corregimiento>)?.sortedBy { it.nombre_corregimiento } ?: emptyList() // Guardar lista completa y ordenar
+            allDistritos = (optionsResults[2].await().getOrNull() as? List<Distrito>)?.sortedBy { it.nombre_distrito } ?: emptyList() // Guardar lista completa y ordenar
+            allCorregimientos = (optionsResults[3].await().getOrNull() as? List<Corregimiento>)?.sortedBy { it.nombre_corregimiento } ?: emptyList() // Guardar lista completa y ordenar
             departamentos = (optionsResults[4].await().getOrNull() as? List<Departamento>)?.sortedBy { it.nombre } ?: emptyList()
-            cargos = (optionsResults[5].await().getOrNull() as? List<Cargo>)?.sortedBy { it.nombre } ?: emptyList()
+            allCargos = (optionsResults[5].await().getOrNull() as? List<Cargo>)?.sortedBy { it.nombre } ?: emptyList() // Guardar lista completa y ordenar
 
 
             // Cargar los datos del empleado específico
@@ -216,9 +214,6 @@ fun DetailsEmployeeScreen(
                     employee = foundEmployee // Guardar el empleado original cargado
 
                     // Rellenar los estados del formulario con los datos del empleado
-                    // La cédula no es editable en esta pantalla, usamos la original
-                    // currentCedula = foundEmployee.cedula // Already initialized with passed cedula
-
                     primerNombre = foundEmployee.nombre1 ?: ""
                     segundoNombre = foundEmployee.nombre2 ?: ""
                     primerApellido = foundEmployee.apellido1 ?: ""
@@ -246,16 +241,11 @@ fun DetailsEmployeeScreen(
                     // Seleccionar los objetos en los Dropdowns basándose en los códigos cargados
                     selectedNacionalidad = nacionalidades.find { it.codigo == foundEmployee.nacionalidad } // Buscar por código
                     selectedProvincia = provincias.find { it.codigo_provincia == foundEmployee.provincia } // Buscar por código
-
-                    // Filtrar y seleccionar Distrito y Corregimiento al cargar
-                    val filteredDistritosForLoad = distritos.filter { it.codigo_provincia == foundEmployee.provincia }
-                    selectedDistrito = filteredDistritosForLoad.find { it.codigo_distrito == foundEmployee.distrito } // Buscar por código de distrito
-
-                    val filteredCorregimientosForLoad = corregimientos.filter { it.codigo_provincia == foundEmployee.provincia && it.codigo_distrito == foundEmployee.distrito }
-                    selectedCorregimiento = filteredCorregimientosForLoad.find { it.codigo == foundEmployee.corregimiento } // Buscar por código de corregimiento
-
+                    selectedDistrito = allDistritos.find { it.codigo_distrito == foundEmployee.distrito && it.codigo_provincia == foundEmployee.provincia } // Buscar por código de distrito y provincia
+                    selectedCorregimiento = allCorregimientos.find { it.codigo == foundEmployee.corregimiento && it.codigo_distrito == foundEmployee.distrito && it.codigo_provincia == foundEmployee.provincia } // Buscar por código de corregimiento, distrito y provincia
                     selectedDepartamento = departamentos.find { it.codigo == foundEmployee.departamento } // Buscar por código
-                    selectedCargo = cargos.find { it.codigo == foundEmployee.cargo } // Buscar por código
+                    selectedCargo = allCargos.find { it.codigo == foundEmployee.cargo && it.dep_codigo == foundEmployee.departamento } // Buscar por código de cargo y departamento
+
 
                     hasChanges = false // No hay cambios al cargar
                 } else {
@@ -273,32 +263,41 @@ fun DetailsEmployeeScreen(
         }
     }
 
-    // LaunchedEffect para filtrar distritos y corregimientos cuando cambian las selecciones de provincia/distrito en la UI
-    // Estos LaunchedEffects son principalmente para la lógica de la UI si necesitas actualizar las listas de dropdowns dinámicamente
-    // Si los componentes AddressInfoComponent ya manejan el filtrado internamente basándose en los estados selectedProvincia/selectedDistrito
-    // que se les pasan, entonces estos LaunchedEffects podrían ser innecesarios o necesitar ajustar su lógica.
-    LaunchedEffect(selectedProvincia) {
-        // Lógica de filtrado si AddressInfoComponent necesita una lista pre-filtrada
-        // Por ahora, asumimos que AddressInfoComponent filtra internamente.
-        // Reset dependent dropdowns and their errors when parent changes
-        selectedDistrito = null
-        selectedCorregimiento = null
-        distritoError = null
-        corregimientoError = null
+    // Derived states for filtered lists based on current selections
+    val filteredDistritos = remember(selectedProvincia, allDistritos) {
+        // Capture the delegated property value in a local variable
+        val currentProvincia = selectedProvincia
+        if (currentProvincia == null) {
+            emptyList()
+        } else {
+            // Use the local variable for filtering
+            allDistritos.filter { it.codigo_provincia == currentProvincia.codigo_provincia }
+        }
     }
 
-    LaunchedEffect(selectedDistrito) {
-        // Lógica de filtrado si AddressInfoComponent necesita una lista pre-filtrada
-        // Por ahora, asumimos que AddressInfoComponent filtra internamente.
-        // Reset dependent dropdown and its error when parent changes
-        selectedCorregimiento = null
-        corregimientoError = null
+    val filteredCorregimientos = remember(selectedProvincia, selectedDistrito, allCorregimientos) {
+        // Capture the delegated property values in local variables
+        val currentProvincia = selectedProvincia
+        val currentDistrito = selectedDistrito
+        if (currentProvincia == null || currentDistrito == null) {
+            emptyList()
+        } else {
+            // Use the local variables for filtering
+            allCorregimientos.filter {
+                it.codigo_provincia == currentProvincia.codigo_provincia && it.codigo_distrito == currentDistrito.codigo_distrito
+            }
+        }
     }
 
-    LaunchedEffect(selectedDepartamento) {
-        // Reset dependent dropdown and its error when parent changes
-        selectedCargo = null
-        cargoError = null
+    val filteredCargos = remember(selectedDepartamento, allCargos) {
+        // Capture the delegated property value in a local variable
+        val currentDepartamento = selectedDepartamento
+        if (currentDepartamento == null) {
+            emptyList()
+        } else {
+            // Use the local variable for filtering
+            allCargos.filter { it.dep_codigo == currentDepartamento.codigo || it.dep_codigo == null } // Include cargos without department assigned if needed
+        }
     }
 
 
@@ -307,7 +306,6 @@ fun DetailsEmployeeScreen(
         var isValid = true
 
         // Resetear errores previos
-        // La cédula no es editable, no necesita reset de error aquí.
         primerNombreError = null
         segundoNombreError = null
         primerApellidoError = null
@@ -668,16 +666,14 @@ fun DetailsEmployeeScreen(
                                 // Pasar los estados editables y de error a los componentes
                                 ContactInfoComponent(
                                     celular = celular,
-                                    onCelularChange = { celular = it; hasChanges = true; celularError = null }, // UI String, Reset error on change
-                                    celularError = celularError, // Pass error state
-
+                                    onCelularChange = { celular = it; hasChanges = true; celularError = null },
+                                    celularError = celularError, // Pasar estado de error
                                     telefono = telefono,
-                                    onTelefonoChange = { telefono = it; hasChanges = true; telefonoError = null }, // UI String, Reset error on change
-                                    telefonoError = telefonoError, // Pass error state
-
+                                    onTelefonoChange = { telefono = it; hasChanges = true; telefonoError = null },
+                                    telefonoError = telefonoError, // Pasar estado de error
                                     email = email,
-                                    onEmailChange = { email = it; hasChanges = true; emailError = null }, // UI String, Reset error on change
-                                    emailError = emailError, // Pass error state
+                                    onEmailChange = { email = it; hasChanges = true; emailError = null },
+                                    emailError = emailError, // Pasar estado de error
                                     // REMOVED: password and passwordError are no longer passed
                                 )
                             }
@@ -705,10 +701,8 @@ fun DetailsEmployeeScreen(
                                     },
                                     provinciaError = provinciaError, // Pass error state
 
-                                    // Filtrar distritos por la provincia seleccionada actualmente en la UI
-                                    distritos = distritos.filter {
-                                        selectedProvincia?.codigo_provincia == it.codigo_provincia
-                                    },
+                                    // **Pasar la lista de distritos FILTRADA**
+                                    distritos = filteredDistritos,
                                     selectedDistrito = selectedDistrito,
                                     onDistritoSelected = {
                                         selectedDistrito = it
@@ -719,10 +713,8 @@ fun DetailsEmployeeScreen(
                                     },
                                     distritoError = distritoError, // Pass error state
 
-                                    // Filtrar corregimientos por la provincia Y distrito seleccionados actualmente en la UI
-                                    corregimientos = corregimientos.filter {
-                                        selectedProvincia?.codigo_provincia == it.codigo_provincia && selectedDistrito?.codigo_distrito == it.codigo_distrito
-                                    },
+                                    // **Pasar la lista de corregimientos FILTRADA**
+                                    corregimientos = filteredCorregimientos,
                                     selectedCorregimiento = selectedCorregimiento,
                                     onCorregimientoSelected = { corregimiento -> selectedCorregimiento = corregimiento; hasChanges = true; corregimientoError = null }, // Handle selection, Reset error on change
                                     corregimientoError = corregimientoError, // Pass error state
@@ -762,14 +754,14 @@ fun DetailsEmployeeScreen(
                                     },
                                     departamentoError = departamentoError, // Pass error state
 
-                                    cargos = cargos, // Pass the list
+                                    // **Pasar la lista de cargos FILTRADA**
+                                    cargos = filteredCargos, // Pass the filtered list
                                     selectedCargo = selectedCargo, // Pass current selection
                                     onCargoSelected = { cargo -> selectedCargo = cargo; hasChanges = true; cargoError = null }, // Handle selection, Reset error on change
                                     cargoError = cargoError, // Pass error state
 
                                     fechaContratacion = fechaContratacion, onFechaContratacionChange = { fechaContratacion = it; hasChanges = true }, // UI Long
                                     estado = estado, onEstadoChange = { estado = it; hasChanges = true } // UI Int
-                                    // TODO: Add validation for required fields like Fecha de Contratacion if needed
                                 )
                             }
                         }
